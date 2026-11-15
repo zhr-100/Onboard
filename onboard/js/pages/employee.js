@@ -49,7 +49,7 @@
     var closeBtn = document.getElementById('handoffClose');
     if (closeBtn) closeBtn.addEventListener('click', O.components.ticket.closeHandoff);
 
-    initEmployees();
+    initEmployees(user);
     renderQuickChips();
     bindEvents();
 
@@ -68,12 +68,24 @@
     if (pane === 'tickets') renderTicketList();
   }
 
-  function initEmployees() {
+  function initEmployees(user) {
     var employees = O.store.get('employees') || [];
     el.employeeSelect.innerHTML = employees.map(function (e) {
       return '<option value="' + O.dom.escapeHtml(e.id) + '">' +
         O.dom.escapeHtml(e.name + ' · ' + e.dept) + '</option>';
     }).join('');
+
+    // 用员工账号登录时，问答里的身份就是这个员工本人，不能切换
+    if (user && user.employeeId) {
+      var mine = employees.filter(function (e) { return e.id === user.employeeId; })[0];
+      if (mine) {
+        state.employeeId = mine.id;
+        state.employee = mine;
+        el.employeeSelect.value = mine.id;
+        el.employeeSelect.hidden = true;
+        return;
+      }
+    }
 
     var current = employees.filter(function (e) { return e.status === '在职'; })[0] || employees[0];
     if (current) {

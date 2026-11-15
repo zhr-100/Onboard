@@ -12,25 +12,41 @@
 <body>
 
 <!-- ============================================================
-     一、认证页：第一次使用 → 创建工作空间；之后 → 登录
+     一、认证页：左半边品牌区，右半边登录卡片
      ============================================================ -->
 <div class="auth-screen" id="authScreen" hidden>
-  <div class="auth-wrap">
 
-    <div class="auth-brand">
-      <span class="brand-mark">初</span>
-      <div>
-        <div class="auth-brand-name">初见onboard</div>
-        <div class="auth-brand-sub">企业员工服务助手</div>
+  <!-- 左半边：品牌区 -->
+  <section class="auth-brand-side">
+    <div class="auth-brand-inner">
+      <div class="auth-logo">
+        <span class="brand-mark">初</span>
+        <span class="auth-logo-name">初见onboard</span>
       </div>
-    </div>
 
+      <h1 class="auth-slogan">从第一天起，<br>让每个问题都有据可依。</h1>
+      <p class="auth-sub-slogan">
+        公司的制度，你的假期，工作的小疑问。<br>
+        一个属于员工的、值得信赖的服务入口。
+      </p>
+
+      <ul class="auth-points">
+        <li><b>有依据</b><span>每条回答都附上制度原文，可以逐字核对</span></li>
+        <li><b>不编造</b><span>查不到就明确说"没找到"，并帮你转人工</span></li>
+        <li><b>有人兜底</b><span>机器人解决不了的事，一定有人接手</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 右半边：登录卡片 -->
+  <section class="auth-form-side">
     <div class="auth-card">
 
-      <!-- 创建工作空间 -->
+      <!-- 首次使用：创建工作空间（不是公开注册入口，仅在没有任何账号时出现） -->
       <div class="auth-pane" id="paneSetup" hidden>
-        <h1>创建你的工作空间</h1>
-        <p class="auth-desc">这是这台电脑上的第一次使用。创建第一个管理员账号，创建完成后会自动登录；以后用这个账号就能直接进入。</p>
+        <span class="auth-eyebrow">本机首次使用</span>
+        <h2>创建你的工作空间</h2>
+        <p class="auth-desc">创建第一个管理账号，创建完成后会自动登录。之后所有账号都由管理员分配。</p>
 
         <div class="field">
           <label for="setupName">管理员姓名</label>
@@ -41,7 +57,7 @@
           <input class="input" id="setupDept" type="text" maxlength="20" placeholder="例如：人力资源部">
         </div>
         <div class="field">
-          <label for="setupUsername">账号</label>
+          <label for="setupUsername">管理账号</label>
           <input class="input" id="setupUsername" type="text" maxlength="20" placeholder="3-20 个字母、数字或下划线" autocomplete="username">
         </div>
         <div class="field">
@@ -53,32 +69,55 @@
           <input class="input" id="setupConfirm" type="password" maxlength="64" placeholder="再输入一次" autocomplete="new-password">
         </div>
 
+        <label class="check-row" for="setupSample">
+          <input type="checkbox" id="setupSample" checked>
+          <span>同时为 3 位示例员工开通账号（演示用）</span>
+        </label>
+
         <div class="form-error" id="setupError" hidden></div>
         <button class="btn btn-primary btn-lg btn-block" id="setupSubmit">创建工作空间并登录</button>
-        <p class="auth-foot">账号只保存在这台电脑上，密码只保存加密后的摘要，不保存明文。</p>
+        <p class="auth-note">账号只保存在这台电脑上，密码只保存加密后的摘要，不保存明文。</p>
       </div>
 
       <!-- 登录 -->
       <div class="auth-pane" id="paneLogin" hidden>
-        <h1>登录</h1>
-        <p class="auth-desc">输入账号和密码，进入初见onboard。</p>
+        <div class="login-tabs" role="tablist">
+          <button class="login-tab is-active" type="button" data-scope="employee" role="tab" aria-selected="true">员工登录</button>
+          <button class="login-tab" type="button" data-scope="admin" role="tab" aria-selected="false">管理后台</button>
+        </div>
+
+        <h2 id="loginTitle">员工登录</h2>
+        <p class="auth-desc" id="loginDesc">用员工编号或员工账号登录。</p>
 
         <div class="field">
-          <label for="loginUsername">账号</label>
-          <input class="input" id="loginUsername" type="text" maxlength="20" autocomplete="username">
+          <label for="loginUsername" id="loginUsernameLabel">员工编号 / 员工账号</label>
+          <input class="input" id="loginUsername" type="text" maxlength="20" placeholder="例如：E1001" autocomplete="username">
         </div>
         <div class="field">
           <label for="loginPassword">密码</label>
-          <input class="input" id="loginPassword" type="password" maxlength="64" autocomplete="current-password">
+          <div class="pwd-row">
+            <input class="input" id="loginPassword" type="password" maxlength="64" autocomplete="current-password">
+            <label class="show-pwd" for="showPassword">
+              <input type="checkbox" id="showPassword">
+              <span>显示密码</span>
+            </label>
+          </div>
         </div>
 
         <div class="form-error" id="loginError" hidden></div>
         <button class="btn btn-primary btn-lg btn-block" id="loginSubmit">登录</button>
         <button class="auth-link" id="forgotLink" type="button">忘记密码？</button>
+        <p class="forgot-note" id="forgotNote" hidden>请联系公司HR或系统管理员重置密码</p>
+
+        <p class="demo-hint" id="employeeDemoHint">
+          示例提示：示例员工账号 <b>E1001</b>，密码 <b>onboard123</b>（示例数据）
+        </p>
       </div>
 
     </div>
-  </div>
+
+    <p class="auth-foot" id="authFoot">账号由公司管理员分配，无公开注册。</p>
+  </section>
 </div>
 
 <!-- ============================================================
@@ -100,10 +139,10 @@
       <a href="#/tickets" data-pane="tickets"><span class="nav-ico" aria-hidden="true">📮</span>我的工单</a>
       <a href="#/faq" data-pane="faq"><span class="nav-ico" aria-hidden="true">❓</span>常见问题</a>
 
-      <div class="nav-group-title">管理</div>
-      <a href="#/hr" data-pane="hr" class="is-soon"><span class="nav-ico" aria-hidden="true">👥</span>员工与制度</a>
-      <a href="#/ops" data-pane="ops" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
-      <a href="#/learn" data-pane="learn" class="is-soon"><span class="nav-ico" aria-hidden="true">📘</span>学习中心</a>
+      <div class="nav-group-title" data-role="admin">管理</div>
+      <a href="#/hr" data-pane="hr" data-role="admin" class="is-soon"><span class="nav-ico" aria-hidden="true">👥</span>员工与制度</a>
+      <a href="#/ops" data-pane="ops" data-role="admin" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
+      <a href="#/learn" data-pane="learn" data-role="admin" class="is-soon"><span class="nav-ico" aria-hidden="true">📘</span>学习中心</a>
     </nav>
 
     <!-- 底部：当前用户 -->

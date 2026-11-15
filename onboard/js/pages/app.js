@@ -19,8 +19,28 @@
     learn: '学习中心'
   };
 
+  /** 只有管理身份能进的页面 */
+  var ADMIN_PANES = ['hr', 'ops', 'learn'];
+
   var el = {};
   var currentUser = null;
+  /** 当前登录入口：'employee' 员工登录 / 'admin' 管理后台 */
+  var loginScope = 'employee';
+
+  var SCOPE_TEXT = {
+    employee: {
+      title: '员工登录',
+      desc: '用员工编号或员工账号登录。',
+      label: '员工编号 / 员工账号',
+      placeholder: '例如：E1001'
+    },
+    admin: {
+      title: '管理后台',
+      desc: '用管理账号登录，进入管理工作区。',
+      label: '管理账号',
+      placeholder: '例如：admin'
+    }
+  };
 
   /* ---------------------------------------------------------
    * 启动
@@ -36,6 +56,9 @@
     el.pwdError = document.getElementById('pwdError');
     el.pageTitle = document.getElementById('pageTitle');
     el.pageDate = document.getElementById('pageDate');
+    el.authFoot = document.getElementById('authFoot');
+    el.forgotNote = document.getElementById('forgotNote');
+    el.employeeDemoHint = document.getElementById('employeeDemoHint');
 
     bindAuthForms();
     bindShell();
@@ -43,7 +66,7 @@
     O.store.init(O.seed.build()).then(function () {
       var session = O.auth.currentUser();
       if (session) {
-        enterApp(session);
+        enterApp(session, false);
       } else if (O.auth.hasAccounts()) {
         showLogin();
       } else {
@@ -61,6 +84,7 @@
     el.paneSetup.hidden = false;
     el.paneLogin.hidden = true;
     el.setupError.hidden = true;
+    el.authFoot.textContent = '本机首次使用：创建第一个管理账号，之后账号由管理员分配。';
     setTimeout(function () { document.getElementById('setupName').focus(); }, 40);
   }
 
@@ -70,7 +94,45 @@
     el.paneSetup.hidden = true;
     el.paneLogin.hidden = false;
     el.loginError.hidden = true;
+    el.authFoot.textContent = '账号由公司管理员分配，无公开注册。';
+    if (el.forgotNote) el.forgotNote.hidden = true;
+
+    var showPwd = document.getElementById('showPassword');
+    if (showPwd) {
+      showPwd.checked = false;
+      var pwdInput = document.getElementById('loginPassword');
+      if (pwdInput) pwdInput.type = 'password';
+    }
+    var userInput = document.getElementById('loginUsername');
+    var pwd = document.getElementById('loginPassword');
+    if (userInput) userInput.value = '';
+    if (pwd) pwd.value = '';
+
+    applyScope(loginScope);
     setTimeout(function () { document.getElementById('loginUsername').focus(); }, 40);
+  }
+
+  /** 切换登录入口 */
+  function applyScope(scope) {
+    loginScope = scope === 'admin' ? 'admin' : 'employee';
+    var text = SCOPE_TEXT[loginScope];
+
+    O.dom.$$('.login-tab').forEach(function (tab) {
+      var on = tab.getAttribute('data-scope') === loginScope;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+
+    document.getElementById('loginTitle').textContent = text.title;
+    document.getElementById('loginDesc').textContent = text.desc;
+    document.getElementById('loginUsernameLabel').textContent = text.label;
+    var input = document.getElementById('loginUsername');
+    if (input) input.placeholder = text.placeholder;
+
+    // 示例账号提示只在员工入口下出现
+    if (el.employeeDemoHint) {
+      el.employeeDemoHint.hidden = loginScope !== 'employee';
+    }
   }
 
   function showError(node, message) {
@@ -83,12 +145,14 @@
     var setupSubmit = document.getElementById('setupSubmit');
     if (setupSubmit) {
       setupSubmit.addEventListener('click', function () {
+        var sample = document.getElementById('setupSample');
         var input = {
           name: document.getElementById('setupName').value,
           dept: document.getElementById('setupDept').value,
           username: document.getElementById('setupUsername').value,
           password: document.getElementById('setupPassword').value,
-          confirmPassword: document.getElementById('setupConfirm').value
+          confirmPassword: document.getElementById('setupConfirm').value,
+          withSampleEmployees: sample ? sample.checked : true
         };
         var result = O.auth.createWorkspace(input);
         if (!result.ok) {
@@ -97,7 +161,7 @@
           if (bad) bad.focus();
           return;
         }
-        enterApp(result.account);
+        enterApp(result.account, true);
         O.components.toast.show('工作空间已创建，欢迎加入', 'ok');
       });
     }
@@ -119,14 +183,37 @@
       loginSubmit.addEventListener('click', function () {
         var username = document.getElementById('loginUsername').value;
         var password = document.getElementById('loginPassword').value;
-        var result = O.auth.login(username, password);
+        var result = O.auth.login(username, password, loginScope);
         if (!result.ok) {
           showError(el.loginError, result.message);
           return;
         }
         el.loginError.hidden = true;
         document.getElementById('loginPassword').value = '';
-        enterApp(result.account);
+        enterApp(result.account, true);
+      });
+    }
+
+    // 登录入口切换：员工登录 / 管理后台
+    O.dom.on(el.authScreen, 'click', '.login-tab', function (event, tab) {
+      applyScope(tab.getAttribute('data-scope'));
+      el.loginError.hidden = true;
+    });
+
+    // 显示密码
+    var showPwd = document.getElementById('showPassword');
+    if (showPwd) {
+      showPwd.addEventListener('change', function () {
+        var input = document.getElementById('loginPassword');
+        if (input) input.type = showPwd.checked ? 'text' : 'password';
+      });
+    }
+
+    // 忘记密码：只给出统一提示，不提供任何自助重置入口
+    var forgot = document.getElementById('forgotLink');
+    if (forgot) {
+      forgot.addEventListener('click', function () {
+        if (el.forgotNote) el.forgotNote.hidden = false;
       });
     }
 
@@ -140,13 +227,6 @@
         }
       });
     });
-
-    var forgot = document.getElementById('forgotLink');
-    if (forgot) {
-      forgot.addEventListener('click', function () {
-        O.components.toast.show('这是本机演示版：可以在浏览器里清除本站数据后重新创建工作空间', 'warn');
-      });
-    }
   }
 
   function capitalize(text) {
@@ -156,7 +236,7 @@
   /* ---------------------------------------------------------
    * 进入主界面
    * ------------------------------------------------------- */
-  function enterApp(user) {
+  function enterApp(user, isFreshLogin) {
     currentUser = user;
     el.authScreen.hidden = true;
     el.appShell.hidden = false;
@@ -187,8 +267,18 @@
       O.pages.employee.init(user);
     }
 
-    if (!window.location.hash || window.location.hash === '#/') {
-      window.location.hash = '#/overview';
+    // 员工身份看不到「管理」区的入口
+    var isEmployee = O.auth.isEmployee(user);
+    O.dom.$$('#sideMenu [data-role="admin"]').forEach(function (node) {
+      node.hidden = isEmployee;
+    });
+
+    // 员工直接进「员工问答」，管理账号进「工作概览」。
+    // 只有"刚刚登录成功"时才重置落地页；刷新页面时保留原来停在哪一页。
+    if (isFreshLogin) {
+      window.location.hash = isEmployee ? '#/chat' : '#/overview';
+    } else if (!window.location.hash || window.location.hash === '#/') {
+      window.location.hash = isEmployee ? '#/chat' : '#/overview';
     }
     route();
   }
@@ -196,14 +286,7 @@
   function logout() {
     O.auth.clearCurrentUser();
     currentUser = null;
-    el.appShell.hidden = true;
-    el.authScreen.hidden = false;
-    el.paneLogin.hidden = false;
-    el.paneSetup.hidden = true;
-    el.loginError.hidden = true;
-    document.getElementById('loginUsername').value = '';
-    document.getElementById('loginPassword').value = '';
-    setTimeout(function () { document.getElementById('loginUsername').focus(); }, 40);
+    showLogin();
   }
 
   /* ---------------------------------------------------------
@@ -212,6 +295,12 @@
   function route() {
     var hash = (window.location.hash || '#/overview').replace('#/', '');
     var target = PAGE_TITLES[hash] ? hash : 'overview';
+
+    // 员工身份进不了管理区
+    if (currentUser && O.auth.isEmployee(currentUser) && ADMIN_PANES.indexOf(target) >= 0) {
+      target = 'chat';
+      window.location.hash = '#/chat';
+    }
 
     O.dom.$$('.pane').forEach(function (pane) {
       pane.classList.toggle('is-active', pane.id === 'pane-' + target);
@@ -290,11 +379,7 @@
     closePasswordModal();
     O.auth.clearCurrentUser();
     currentUser = null;
-    el.appShell.hidden = true;
-    el.authScreen.hidden = false;
-    el.paneLogin.hidden = false;
-    el.paneSetup.hidden = true;
-    el.loginError.hidden = true;
+    showLogin();
     document.getElementById('loginUsername').value = username;
     O.components.toast.show('密码已修改，请用新密码登录', 'ok');
   }

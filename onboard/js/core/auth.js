@@ -13,6 +13,11 @@
   var ROLES = ['管理员', 'HR', '产品运营', '员工'];
   var SESSION_KEY = 'onboard.v1.session';
   var WORKSPACE_KEY = 'onboard.v1.workspace';
+  /** 示例员工账号统一使用的演示密码（仅用于本地演示数据） */
+  var SAMPLE_EMPLOYEE_PASSWORD = 'onboard123';
+  var SAMPLE_EMPLOYEE_COUNT = 3;
+  /** 登录失败时统一使用这句，不区分"账号不存在"和"密码不对" */
+  var LOGIN_FAILED = '账号或密码不正确，请重新输入';
 
   function accounts() {
     return O.store.get('accounts') || [];
@@ -80,12 +85,14 @@
       id: O.format.createId('U'),
       name: name,
       username: username,
+      employeeId: null,
       dept: dept,
       role: ROLES[0],
       salt: salt,
       passwordHash: hashPassword(salt, input.password),
       status: '正常',
       isOwner: true,
+      isSample: false,
       createdAt: new Date().toISOString(),
       lastLoginAt: null
     };
@@ -102,8 +109,53 @@
     };
     O.store.set('workspace', workspace);
 
+    if (input.withSampleEmployees !== false) {
+      provisionSampleEmployees();
+    }
+
     setCurrentUser(account.id);
     return { ok: true, account: account, workspace: workspace };
+  }
+
+  /**
+   * 为示例员工开通账号（仅演示数据）。
+   * 员工账号用「员工编号」作为登录名，密码统一，便于演示时快速切换身份。
+   */
+  function provisionSampleEmployees() {
+    var employees = (O.store.get('employees') || []).filter(function (e) {
+      return e.status === '在职';
+    }).slice(0, SAMPLE_EMPLOYEE_COUNT);
+
+    if (!employees.length) return [];
+
+    var list = accounts();
+    var salt = O.sha256.randomSalt();
+    var hash = hashPassword(salt, SAMPLE_EMPLOYEE_PASSWORD);
+    var created = [];
+
+    employees.forEach(function (e) {
+      if (list.some(function (a) { return a.username === normalizeUsername(e.id); })) return;
+      var acc = {
+        id: O.format.createId('U'),
+        name: e.name,
+        username: normalizeUsername(e.id),
+        employeeId: e.id,
+        dept: e.dept,
+        role: '员工',
+        salt: salt,
+        passwordHash: hash,
+        status: '正常',
+        isOwner: false,
+        isSample: true,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: null
+      };
+      list.push(acc);
+      created.push(acc);
+    });
+
+    saveAccounts(list);
+    return created;
   }
 
   function findByUsername(username) {
@@ -129,14 +181,34 @@
     return found;
   }
 
-  /** 登录 */
-  function login(username, password) {
-    var account = findByUsername(username);
-    if (!account) return { ok: false, message: '账号不存在' };
-    if (account.status === '已停用') return { ok: false, message: '这个账号已停用' };
-    if (hashPassword(account.salt, password) !== account.passwordHash) {
-      return { ok: false, message: '账号或密码不对' };
+  /**
+   * 登录
+   * scope: 'employee' 员工登录（用员工编号或员工账号）
+   *        'admin'    管理后台（用管理账号）
+   *
+   * 失败时一律返回同一句提示，不告诉对方"账号不存在"还是"密码不对"。
+   */
+  function login(username, password, scope) {
+    var input = normalizeUsername(username);
+    var list = accounts();
+    var account = null;
+
+    if (scope === 'employee') {
+      account = list.filter(function (a) {
+        if (a.role !== '员工' || a.status !== '正常') return false;
+        if (a.username === input) return true;
+        return !!(a.employeeId && normalizeUsername(a.employeeId) === input);
+      })[0] || null;
+    } else {
+      account = list.filter(function (a) {
+        return a.role !== '员工' && a.username === input && a.status === '正常';
+      })[0] || null;
     }
+
+    if (!account || hashPassword(account.salt, password) !== account.passwordHash) {
+      return { ok: false, message: LOGIN_FAILED };
+    }
+
     updateAccount(account.id, function (a) {
       a.lastLoginAt = new Date().toISOString();
     });
@@ -215,16 +287,21 @@
   O.auth = {
     MIN_PASSWORD: MIN_PASSWORD,
     ROLES: ROLES,
+    SAMPLE_EMPLOYEE_PASSWORD: SAMPLE_EMPLOYEE_PASSWORD,
+    LOGIN_FAILED: LOGIN_FAILED,
     accounts: accounts,
     hasAccounts: hasAccounts,
     findByUsername: findByUsername,
     validate: validate,
     createWorkspace: createWorkspace,
+    provisionSampleEmployees: provisionSampleEmployees,
     login: login,
     changePassword: changePassword,
     currentUser: currentUser,
     setCurrentUser: setCurrentUser,
     clearCurrentUser: clearCurrentUser,
-    workspace: workspace
+    workspace: workspace,
+    /** 是不是员工身份（决定能进哪些区域） */
+    isEmployee: function (user) { return !!user && user.role === '员工'; }
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
