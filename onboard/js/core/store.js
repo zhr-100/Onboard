@@ -130,12 +130,22 @@
     scheduleServerSync();
   }
 
+  /**
+   * 播种示例数据。
+   * 重要：只补"本地还没有的"那几项，绝不覆盖已有数据。
+   * 否则「已播种」标记一旦丢失（例如换了浏览器或清了部分缓存），
+   * 用户已经创建的账号、提出的工单就会被空的示例数据冲掉。
+   */
   function applySeed(seedState) {
     COLLECTIONS.forEach(function (name) {
       var value = seedState[name];
       if (value === undefined) return;
+      if (readRaw(KEYS[name]) !== null) return;   // 已经有数据了，保持不动
       writeRaw(KEYS[name], JSON.stringify(value));
     });
+    if (seedState.workspace && readRaw(KEYS.workspace) === null) {
+      writeRaw(KEYS.workspace, JSON.stringify(seedState.workspace));
+    }
     writeRaw(KEYS.seeded, JSON.stringify({ at: new Date().toISOString(), dataset: 'onboard-demo-v1' }));
   }
 

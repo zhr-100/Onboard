@@ -64,6 +64,8 @@
     bindShell();
 
     O.store.init(O.seed.build()).then(function () {
+      ensureSampleEmployees();
+
       var session = O.auth.currentUser();
       if (session) {
         enterApp(session, false);
@@ -73,6 +75,28 @@
         showSetup();
       }
     });
+  }
+
+  /**
+   * 补齐示例员工账号。
+   * 工作空间可能是在"示例员工账号"这个功能之前创建的（或者创建时没勾选），
+   * 那样系统里就一个员工账号都没有，文档里写的 E1001 登不进去。
+   * 这里做一次补齐：只要一个员工账号都没有，就补上那几个示例账号。
+   * 已经存在的账号不会被覆盖。
+   */
+  function ensureSampleEmployees() {
+    if (!O.auth.hasAccounts()) return;   // 还没创建工作空间，等创建流程自己处理
+    var employees = O.auth.accounts().filter(function (a) { return a.role === '员工'; });
+    if (employees.length) return;
+
+    var created = O.auth.provisionSampleEmployees();
+    if (created.length) {
+      console.log('[初见] 已补齐示例员工账号：' + created.map(function (a) { return a.username; }).join('、'));
+      O.components.toast.show(
+        '已为示例员工开通演示账号（' + created.map(function (a) { return a.username; }).join('、') + '）',
+        'ok'
+      );
+    }
   }
 
   /* ---------------------------------------------------------
@@ -96,6 +120,10 @@
     el.loginError.hidden = true;
     el.authFoot.textContent = '账号由公司管理员分配，无公开注册。';
     if (el.forgotNote) el.forgotNote.hidden = true;
+
+    // 每次回到登录页都确认一遍示例员工账号还在
+    // （老工作空间是在这个功能之前创建的，登录页上写的 E1001 就登不进去）
+    ensureSampleEmployees();
 
     var showPwd = document.getElementById('showPassword');
     if (showPwd) {
@@ -151,8 +179,7 @@
           dept: document.getElementById('setupDept').value,
           username: document.getElementById('setupUsername').value,
           password: document.getElementById('setupPassword').value,
-          confirmPassword: document.getElementById('setupConfirm').value,
-          withSampleEmployees: sample ? sample.checked : true
+          confirmPassword: document.getElementById('setupConfirm').value
         };
         var result = O.auth.createWorkspace(input);
         if (!result.ok) {

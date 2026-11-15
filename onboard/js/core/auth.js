@@ -109,9 +109,8 @@
     };
     O.store.set('workspace', workspace);
 
-    if (input.withSampleEmployees !== false) {
-      provisionSampleEmployees();
-    }
+    // 示例员工账号属于示例数据的一部分，和示例制度、示例工单一样，创建时一并生成
+    provisionSampleEmployees();
 
     setCurrentUser(account.id);
     return { ok: true, account: account, workspace: workspace };
