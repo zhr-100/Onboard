@@ -1,5 +1,7 @@
 /**
- * 初见 Onboard · 员工端页面逻辑
+ * 初见 Onboard · 员工问答页与工单页
+ *
+ * 由 js/pages/app.js 在登录成功后调用 init()，导航切换时调用 onShow()。
  */
 (function (root) {
   var O = root.Onboard;
@@ -21,25 +23,25 @@
     employee: null,
     corpus: null,
     corpusSig: '',
-    sessionId: null
+    sessionId: null,
+    ready: false
   };
 
   var el = {};
 
   /* ---------------------------------------------------------
-   * 启动
+   * 初始化（登录成功后调用一次）
    * ------------------------------------------------------- */
-  function boot() {
+  function init(user) {
     el.chatScroll = document.getElementById('chatScroll');
     el.chatInput = document.getElementById('chatInput');
     el.chatSend = document.getElementById('chatSend');
     el.employeeSelect = document.getElementById('employeeSelect');
-    el.userAvatar = document.getElementById('userAvatar');
     el.quickChips = document.getElementById('quickChips');
     el.ticketList = document.getElementById('ticketList');
-    el.backendBtn = document.getElementById('backendBtn');
-    el.backendMenu = document.getElementById('backendMenu');
-    el.storageBanner = document.getElementById('storageBanner');
+    var handoff = document.getElementById('chatHandoff');
+
+    if (!el.chatScroll) return;
 
     O.components.citation.bind();
     O.components.ticket.bindModal();
@@ -47,23 +49,30 @@
     var closeBtn = document.getElementById('handoffClose');
     if (closeBtn) closeBtn.addEventListener('click', O.components.ticket.closeHandoff);
 
-    O.store.init(O.seed.build()).then(function (info) {
-      if (!O.store.available && el.storageBanner) el.storageBanner.hidden = false;
-      O.nlp.configApi.loadOverride();
-      initEmployees();
-      renderQuickChips();
-      bindEvents();
-      route();
-      if (!restoreSession()) renderWelcome();
-      renderTicketList();
-    });
+    initEmployees();
+    renderQuickChips();
+    bindEvents();
+
+    if (handoff && !handoff.__bound) {
+      handoff.__bound = true;
+      handoff.addEventListener('click', function () { openHandoff(''); });
+    }
+
+    state.ready = true;
+    if (!restoreSession()) renderWelcome();
+    renderTicketList();
+  }
+
+  /** 切换到某个页面时由外壳调用 */
+  function onShow(pane) {
+    if (pane === 'tickets') renderTicketList();
   }
 
   function initEmployees() {
     var employees = O.store.get('employees') || [];
     el.employeeSelect.innerHTML = employees.map(function (e) {
       return '<option value="' + O.dom.escapeHtml(e.id) + '">' +
-        O.dom.escapeHtml(e.name + ' · ' + e.dept) + '（示例）</option>';
+        O.dom.escapeHtml(e.name + ' · ' + e.dept) + '</option>';
     }).join('');
 
     var current = employees.filter(function (e) { return e.status === '在职'; })[0] || employees[0];
@@ -72,13 +81,6 @@
       state.employee = current;
       el.employeeSelect.value = current.id;
     }
-    updateAvatar();
-  }
-
-  function updateAvatar() {
-    if (!state.employee) return;
-    el.userAvatar.textContent = state.employee.avatarText || state.employee.name.charAt(0);
-    el.userAvatar.style.background = state.employee.avatarColor || 'var(--navy-700)';
   }
 
   function renderQuickChips() {
@@ -104,9 +106,7 @@
     });
 
     O.dom.on(el.quickChips, 'click', '[data-q]', function (event, btn) {
-      var q = btn.getAttribute('data-q');
-      goChat();
-      ask(q);
+      ask(btn.getAttribute('data-q'));
     });
 
     el.employeeSelect.addEventListener('change', function () {
@@ -115,66 +115,9 @@
       if (!found) return;
       state.employeeId = found.id;
       state.employee = found;
-      updateAvatar();
       if (!restoreSession()) renderWelcome();
       renderTicketList();
     });
-
-    var sidebarHandoff = document.getElementById('sidebarHandoff');
-    if (sidebarHandoff) {
-      sidebarHandoff.addEventListener('click', function () {
-        openHandoff('');
-      });
-    }
-
-    el.backendBtn.addEventListener('click', function (event) {
-      event.stopPropagation();
-      var open = el.backendMenu.style.display === 'none' || !el.backendMenu.style.display;
-      el.backendMenu.style.display = open ? 'block' : 'none';
-    });
-
-    O.dom.on(el.backendMenu, 'click', '[data-backend]', function (event, btn) {
-      var kind = btn.getAttribute('data-backend');
-      el.backendMenu.style.display = 'none';
-      var map = {
-        hr: { step: '第 3 步', name: 'HR 后台', detail: '管理员工、制度、年假、工单和入职任务' },
-        ops: { step: '第 4 步', name: '运营后台', detail: '观察回答质量、定位知识缺口并持续优化' },
-        learn: { step: '第 5 步', name: '学习后台', detail: '讲清这个产品的设计理念与实现思路' }
-      };
-      var info = map[kind];
-      O.components.toast.show(info.name + ' 将在' + info.step + '交付（' + info.detail + '）', 'warn');
-    });
-
-    document.addEventListener('click', function () {
-      el.backendMenu.style.display = 'none';
-    });
-
-    window.addEventListener('hashchange', route);
-  }
-
-  /* ---------------------------------------------------------
-   * 路由
-   * ------------------------------------------------------- */
-  function route() {
-    var hash = (window.location.hash || '#/chat').replace('#/', '');
-    var map = {
-      chat: 'chat', leave: 'leave', tickets: 'tickets', faq: 'faq'
-    };
-    var target = map[hash] || 'chat';
-
-    ['chat', 'leave', 'tickets', 'faq'].forEach(function (name) {
-      var view = document.getElementById('view-' + name);
-      if (view) view.classList.toggle('is-active', name === target);
-    });
-    O.dom.$$('#topNav a').forEach(function (a) {
-      a.classList.toggle('is-active', a.getAttribute('data-route') === target);
-    });
-
-    if (target === 'tickets') renderTicketList();
-  }
-
-  function goChat() {
-    if (window.location.hash !== '#/chat') window.location.hash = '#/chat';
   }
 
   /* ---------------------------------------------------------
@@ -230,13 +173,10 @@
       if (typing.parentNode) typing.parentNode.removeChild(typing);
 
       var intent = O.nlp.intent.detect(question);
-      var search = null;
+      var search;
       var answer;
 
-      if (intent === 'chitchat') {
-        search = { state: 'no_evidence', query: { tokens: [], keys: [] }, candidates: [], top: null, matchedTerms: [] };
-        answer = O.nlp.answerer.build({ query: question, intent: intent, search: search });
-      } else if (intent === 'handoff') {
+      if (intent === 'chitchat' || intent === 'handoff') {
         search = { state: 'no_evidence', query: { tokens: [], keys: [] }, candidates: [], top: null, matchedTerms: [] };
         answer = O.nlp.answerer.build({ query: question, intent: intent, search: search });
       } else {
@@ -294,7 +234,6 @@
 
   function pickCandidate(candidate, answer, logId) {
     var search = { query: O.nlp.retriever.prepareQuery(''), matchedTerms: answer.matchedTerms || [] };
-    // 用候选条款自己的原文来组织答案
     var built = O.nlp.answerer.buildForCandidate({
       clause: candidateClause(candidate),
       policy: candidatePolicy(candidate),
@@ -315,7 +254,6 @@
     pushSession({ role: 'assistant', text: built.text, at: new Date().toISOString(), answer: built, logId: logId });
   }
 
-  // 候选条目在渲染时只保留了展示用的字段，这里从制度库里取回完整条款
   function candidateClause(candidate) {
     var policies = O.store.get('policies') || [];
     for (var i = 0; i < policies.length; i++) {
@@ -484,6 +422,7 @@
     O.dom.clear(el.chatScroll);
     var session = currentSession();
     if (!session.messages || !session.messages.length) return false;
+
     session.messages.forEach(function (m) {
       if (m.role === 'user') {
         el.chatScroll.appendChild(O.components.chat.renderUser(m.text));
@@ -509,13 +448,9 @@
     return true;
   }
 
-  O.pages.employee = { init: boot, ask: ask };
-
-  if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', boot);
-    } else {
-      boot();
-    }
-  }
+  O.pages.employee = {
+    init: init,
+    onShow: onShow,
+    ask: ask
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

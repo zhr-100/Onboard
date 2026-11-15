@@ -25,7 +25,9 @@
       onboardingTasks: clone(d.onboardingTasks),
       onboardingTemplates: clone(d.onboardingTemplates),
       questionLogs: [],
-      chatSessions: []
+      chatSessions: [],
+      accounts: [],
+      workspace: null
     };
   }
 

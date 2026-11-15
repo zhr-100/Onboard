@@ -22,12 +22,15 @@
     onboardingTemplates: 'onboard.v1.onboardingTemplates',
     questionLogs: 'onboard.v1.questionLogs',
     chatSessions: 'onboard.v1.chatSessions',
+    accounts: 'onboard.v1.accounts',
+    workspace: 'onboard.v1.workspace',
     prefs: 'onboard.v1.prefs'
   };
 
   var COLLECTIONS = [
     'policies', 'employees', 'leaveBalances', 'tickets',
-    'onboardingTasks', 'onboardingTemplates', 'questionLogs', 'chatSessions'
+    'onboardingTasks', 'onboardingTemplates', 'questionLogs', 'chatSessions',
+    'accounts'
   ];
 
   var memoryStore = {};
@@ -100,6 +103,7 @@
       out[name] = get(name) || [];
     });
     out.prefs = get('prefs') || {};
+    out.workspace = get('workspace') || null;
     return out;
   }
 
@@ -160,6 +164,8 @@
           COLLECTIONS.forEach(function (name) {
             if (data[name] !== undefined) writeRaw(KEYS[name], JSON.stringify(data[name]));
           });
+          if (data.workspace) writeRaw(KEYS.workspace, JSON.stringify(data.workspace));
+          if (data.prefs) writeRaw(KEYS.prefs, JSON.stringify(data.prefs));
           writeRaw(KEYS.seeded, JSON.stringify({ at: new Date().toISOString(), dataset: 'onboard-demo-v1', via: 'server' }));
         } else {
           mode = 'local';
