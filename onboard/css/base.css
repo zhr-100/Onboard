@@ -1,0 +1,190 @@
+/* ===========================================================
+   初见 Onboard · 基础样式
+   颜色令牌集中在这里，组件样式一律使用 var(--x)
+   =========================================================== */
+
+:root {
+  /* 深蓝主色阶 */
+  --navy-950: #061227;
+  --navy-900: #0a1b3d;
+  --navy-800: #0f2a55;
+  --navy-700: #163a75;
+  --navy-600: #1d4e9c;
+  --blue-500: #2f6bff;
+  --blue-400: #4d84ff;
+  --blue-200: #c3d5ff;
+  --blue-50:  #eef3ff;
+
+  /* 中性色 */
+  --bg: #f3f6fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafd;
+  --surface-3: #eff3f9;
+  --border: #dfe6f2;
+  --border-strong: #c6d3e6;
+
+  --text: #11203a;
+  --text-2: #48597a;
+  --text-3: #7b8aa5;
+  --text-inv: #ffffff;
+
+  /* 语义色 */
+  --ok: #0f8a52;
+  --ok-bg: #e6f6ee;
+  --ok-border: #b9e3ce;
+  --warn: #a86a06;
+  --warn-bg: #fdf3e1;
+  --warn-border: #f0d9a8;
+  --danger: #c62f2f;
+  --danger-bg: #fdecec;
+  --danger-border: #f4c4c4;
+  --info: #1d4e9c;
+  --info-bg: #eaf1fd;
+  --info-border: #c5d8f7;
+  --muted-bg: #eef1f6;
+
+  /* 尺寸 */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* 字号 */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+
+  /* 阴影 */
+  --shadow-1: 0 1px 2px rgba(16, 32, 64, 0.06), 0 1px 3px rgba(16, 32, 64, 0.07);
+  --shadow-2: 0 4px 16px rgba(16, 32, 64, 0.10);
+  --shadow-3: 0 18px 48px rgba(10, 27, 61, 0.20);
+
+  --font: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB",
+    "Source Han Sans SC", "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", "SFMono-Regular", monospace;
+
+  --topbar-h: 60px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.7;
+}
+
+h1, h2, h3, h4, h5 { margin: 0; font-weight: 600; line-height: 1.4; }
+p { margin: 0 0 var(--space-3); }
+p:last-child { margin-bottom: 0; }
+ul, ol { margin: 0; padding-left: 1.2em; }
+
+a {
+  color: var(--blue-500);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #c9d4e6;
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #a9b9d2; background-clip: padding-box; }
+
+/* ---------- 应用骨架 ---------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.view {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+.view.is-active { display: flex; }
+
+/* ---------- 通用文字工具 ---------- */
+
+.text-xs { font-size: var(--fs-xs); }
+.text-sm { font-size: var(--fs-sm); }
+.text-muted { color: var(--text-3); }
+.text-sub { color: var(--text-2); }
+.text-strong { font-weight: 600; }
+.mono { font-family: var(--font-mono); }
+.nowrap { white-space: nowrap; }
+.hidden { display: none !important; }
+.spacer { flex: 1; }
+
+.sample-note {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  text-align: center;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+/* 顶部提示横幅（本地存储不可用等） */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--warn-bg);
+  border-bottom: 1px solid var(--warn-border);
+  color: var(--warn);
+  font-size: var(--fs-sm);
+}
+.banner[hidden] { display: none; }

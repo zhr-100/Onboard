@@ -1,0 +1,26 @@
+{
+  "_说明": "这是配置模板。复制成 config.json 后再填写你自己的密钥。config.json 不会被提交。",
+  "server": {
+    "port": 3000,
+    "host": "127.0.0.1"
+  },
+  "llm": {
+    "enabled": false,
+    "provider": "anthropic",
+    "baseUrl": "https://api.anthropic.com",
+    "apiKey": "",
+    "model": "claude-sonnet-5-5",
+    "timeoutMs": 30000,
+    "temperature": 0.1,
+    "systemPromptFile": "prompts/system.txt"
+  },
+  "retrieval": {
+    "absMin": 0.42,
+    "relMin": 1.35,
+    "coverageMin": 0.6,
+    "topK": 3
+  },
+  "storage": {
+    "stateFile": "data/runtime-state.json"
+  }
+}

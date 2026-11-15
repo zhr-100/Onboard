@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>初见 Onboard · 员工服务助手（演示版）</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/chat.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ 顶栏 ============ -->
+  <header class="topbar">
+    <a class="brand" href="#/chat">
+      <span class="brand-mark">初</span>
+      <span>
+        <span class="brand-name">初见 Onboard</span><br>
+        <span class="brand-sub">员工服务助手 · 演示版</span>
+      </span>
+    </a>
+
+    <nav class="topnav" id="topNav">
+      <a href="#/chat" data-route="chat">问答</a>
+      <a href="#/leave" data-route="leave">年假</a>
+      <a href="#/tickets" data-route="tickets">我的工单</a>
+      <a href="#/faq" data-route="faq">常见问题</a>
+    </nav>
+
+    <div class="topbar-right">
+      <span class="sample-badge" title="页面内全部数据都是虚构的示例数据">● 示例数据</span>
+
+      <div class="user-switch">
+        <span class="avatar" id="userAvatar">初</span>
+        <select id="employeeSelect" aria-label="切换当前员工（示例数据）"></select>
+      </div>
+
+      <div style="position:relative">
+        <button class="btn btn-outline-light btn-sm" id="backendBtn" aria-haspopup="true">后台 ▾</button>
+        <div id="backendMenu" class="card" style="position:absolute;right:0;top:44px;width:280px;padding:8px;display:none;z-index:60">
+          <button class="chip" data-backend="hr" style="border:none;background:none">
+            <strong>HR 后台</strong><br>
+            <span class="text-xs text-muted">管员工、制度、年假、工单、入职任务 —— 第 3 步交付</span>
+          </button>
+          <button class="chip" data-backend="ops" style="border:none;background:none">
+            <strong>运营后台</strong><br>
+            <span class="text-xs text-muted">看回答质量、找知识缺口 —— 第 4 步交付</span>
+          </button>
+          <button class="chip" data-backend="learn" style="border:none;background:none">
+            <strong>学习后台</strong><br>
+            <span class="text-xs text-muted">讲清这个产品是怎么设计的 —— 第 5 步交付</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="banner" id="storageBanner" hidden>
+    <span>当前浏览器无法保存本地数据（可能是无痕模式）。你可以正常试用，但关闭页面后记录会丢失。建议改用 README 里说的 <strong>node server.js</strong> 方式打开。</span>
+  </div>
+
+  <div class="app-body">
+
+    <!-- ============ 左侧栏 ============ -->
+    <aside class="sidebar">
+      <div>
+        <div class="side-title">大家都在问</div>
+        <div class="chip-list" id="quickChips"></div>
+      </div>
+
+      <div>
+        <div class="side-title">需要人工</div>
+        <button class="btn btn-navy btn-block" id="sidebarHandoff">转人工找 HR</button>
+        <p class="side-hint" style="margin-top:8px">
+          机器人答不上来时可以直接转给 HR，不会让你一直等。转过去以后，进度会显示在「我的工单」里。
+        </p>
+      </div>
+
+      <div>
+        <div class="side-title">关于这些数据</div>
+        <p class="side-hint">
+          本站是演示版本。页面里的员工姓名、制度条款、假期天数、工单记录全部是虚构的示例数据，不代表任何真实企业的政策。
+        </p>
+      </div>
+    </aside>
+
+    <!-- ============ 主区域 ============ -->
+    <main class="main">
+
+      <!-- 问答 -->
+      <section class="view is-active" id="view-chat">
+        <div class="chat-wrap">
+          <div class="chat-scroll" id="chatScroll"></div>
+          <div class="chat-input">
+            <div class="input-row">
+              <textarea class="textarea" id="chatInput" rows="1"
+                placeholder="用日常话问就行，比如：年假有多少天？"></textarea>
+              <button class="btn btn-primary btn-lg" id="chatSend">发送</button>
+            </div>
+            <div class="input-hint">
+              <span>按 <span class="kbd">Enter</span> 发送</span>
+              <span>按 <span class="kbd">Shift</span>+<span class="kbd">Enter</span> 换行</span>
+              <span>回答只依据公司现行制度；找不到依据时会明确告诉你</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 年假（第 2 步交付） -->
+      <section class="view" id="view-leave">
+        <div class="placeholder">
+          <div class="placeholder-inner">
+            <span class="placeholder-step">第 2 步交付</span>
+            <h3>我的年假</h3>
+            <p>这里会显示你的应得年假、已用、已预约和还能休多少天，每一项都会附上对应的制度依据。</p>
+            <ul>
+              <li>4 张余额卡片（应得 / 已用 / 已预约 / 可用）</li>
+              <li>假期明细表与截止时间提醒</li>
+              <li>「申请休假」直接转人工，不绕路</li>
+            </ul>
+            <p class="text-xs text-muted" style="margin-top:16px">现在先去「问答」里问一句试试，比如「年假有多少天」。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 我的工单 -->
+      <section class="view" id="view-tickets">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>我的工单</h2>
+              <p>机器人解决不了的问题可以转给 HR，这里会记录每一张工单的处理过程。</p>
+            </div>
+            <div id="ticketList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 常见问题（第 2 步交付） -->
+      <section class="view" id="view-faq">
+        <div class="placeholder">
+          <div class="placeholder-inner">
+            <span class="placeholder-step">第 2 步交付</span>
+            <h3>常见问题</h3>
+            <p>这里会按假期、考勤、报销、入职、福利分类列出高频问题，点一下就能直接得到带依据的答案。</p>
+            <ul>
+              <li>按部门分类的高频问题卡片</li>
+              <li>点一下即发起一次带依据的问答</li>
+              <li>每问一次都会计入运营后台的回答质量统计</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="sample-note">
+    演示版本 · 页面内全部人员、制度、假期与工单数据均为虚构示例 · 回答由「初见助手」依据示例制度库生成
+  </div>
+</div>
+
+<!-- ============ 转人工弹窗 ============ -->
+<div class="modal-mask" id="handoffModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="handoffTitle">
+    <div class="modal-head">
+      <h3 id="handoffTitle">转给 HR 同事</h3>
+      <button class="modal-close" id="handoffClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="handoffQuestion">你的问题</label>
+        <textarea class="textarea" id="handoffQuestion" placeholder="例如：产假期间工资按什么标准发？"></textarea>
+        <p class="hint" id="handoffNote"></p>
+      </div>
+      <div class="field">
+        <label for="handoffCategory">问题分类</label>
+        <select class="select" id="handoffCategory"></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="handoffCancel">取消</button>
+      <button class="btn btn-primary" id="handoffSubmit">提交给 HR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 脚本 ============ -->
+<script src="data/policies.js"></script>
+<script src="data/employees.js"></script>
+<script src="data/tickets.js"></script>
+<script src="data/testcases.js"></script>
+
+<script src="js/core/namespace.js"></script>
+<script src="js/core/dom.js"></script>
+<script src="js/core/format.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/seed.js"></script>
+
+<script src="js/nlp/config.js"></script>
+<script src="js/nlp/lexicon.js"></script>
+<script src="js/nlp/tokenizer.js"></script>
+<script src="js/nlp/retriever.js"></script>
+<script src="js/nlp/intent.js"></script>
+<script src="js/nlp/answerer.js"></script>
+
+<script src="js/components/citation.js"></script>
+<script src="js/components/toast.js"></script>
+<script src="js/components/chat.js"></script>
+<script src="js/components/ticket.js"></script>
+
+<script src="js/pages/employee.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# 机密配置（含大模型密钥），不要提交
+config.json
+
+# 运行期自动生成的状态文件
+data/runtime-state.json
+data/runtime-state.json.tmp
+
+# 常见依赖与系统文件
+node_modules/
+.DS_Store
+Thumbs.db
