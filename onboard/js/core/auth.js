@@ -10,14 +10,26 @@
   var O = root.Onboard;
 
   var MIN_PASSWORD = 6;
-  var ROLES = ['管理员', 'HR', '产品运营', '员工'];
   var SESSION_KEY = 'onboard.v1.session';
   var WORKSPACE_KEY = 'onboard.v1.workspace';
-  /** 示例员工账号统一使用的演示密码（仅用于本地演示数据） */
-  var SAMPLE_EMPLOYEE_PASSWORD = 'onboard123';
-  var SAMPLE_EMPLOYEE_COUNT = 3;
+  /** 示例账号统一使用的演示密码（仅用于本地演示数据） */
+  var SAMPLE_PASSWORD = 'onboard123';
   /** 登录失败时统一使用这句，不区分"账号不存在"和"密码不对" */
   var LOGIN_FAILED = '账号或密码不正确，请重新输入';
+  /** 账号被停用时的提示 */
+  var ACCOUNT_DISABLED = '该账号已停用，请联系系统管理员';
+
+  /**
+   * 示例账号清单：员工编号即登录名，密码统一。
+   * 覆盖四种角色，方便直接演示权限差异。
+   */
+  var SAMPLE_ACCOUNTS = [
+    { employeeId: 'E1001', role: '员工' },
+    { employeeId: 'E1002', role: '员工' },
+    { employeeId: 'E1003', role: '员工' },
+    { employeeId: 'E1006', role: 'HR管理员' },
+    { employeeId: 'E1008', role: '产品运营' }
+  ];
 
   function accounts() {
     return O.store.get('accounts') || [];
@@ -87,10 +99,11 @@
       username: username,
       employeeId: null,
       dept: dept,
-      role: ROLES[0],
+      role: '系统管理员',
+      enabled: true,
+      status: '正常',
       salt: salt,
       passwordHash: hashPassword(salt, input.password),
-      status: '正常',
       isOwner: true,
       isSample: false,
       createdAt: new Date().toISOString(),
@@ -110,7 +123,7 @@
     O.store.set('workspace', workspace);
 
     // 示例员工账号属于示例数据的一部分，和示例制度、示例工单一样，创建时一并生成
-    provisionSampleEmployees();
+    provisionSampleAccounts();
 
     setCurrentUser(account.id);
     return { ok: true, account: account, workspace: workspace };
@@ -118,21 +131,18 @@
 
   /**
    * 为示例员工开通账号（仅演示数据）。
-   * 员工账号用「员工编号」作为登录名，密码统一，便于演示时快速切换身份。
+   * 覆盖四种角色，员工编号即登录名，密码统一，便于演示时快速切换身份。
    */
-  function provisionSampleEmployees() {
-    var employees = (O.store.get('employees') || []).filter(function (e) {
-      return e.status === '在职';
-    }).slice(0, SAMPLE_EMPLOYEE_COUNT);
-
-    if (!employees.length) return [];
-
+  function provisionSampleAccounts() {
+    var employees = O.store.get('employees') || [];
     var list = accounts();
     var salt = O.sha256.randomSalt();
-    var hash = hashPassword(salt, SAMPLE_EMPLOYEE_PASSWORD);
+    var hash = hashPassword(salt, SAMPLE_PASSWORD);
     var created = [];
 
-    employees.forEach(function (e) {
+    SAMPLE_ACCOUNTS.forEach(function (spec) {
+      var e = employees.filter(function (x) { return x.id === spec.employeeId; })[0];
+      if (!e) return;
       if (list.some(function (a) { return a.username === normalizeUsername(e.id); })) return;
       var acc = {
         id: O.format.createId('U'),
@@ -140,10 +150,11 @@
         username: normalizeUsername(e.id),
         employeeId: e.id,
         dept: e.dept,
-        role: '员工',
+        role: spec.role,
+        enabled: true,
+        status: '正常',
         salt: salt,
         passwordHash: hash,
-        status: '正常',
         isOwner: false,
         isSample: true,
         createdAt: new Date().toISOString(),
@@ -153,8 +164,41 @@
       created.push(acc);
     });
 
-    saveAccounts(list);
+    if (created.length) saveAccounts(list);
     return created;
+  }
+
+  /**
+   * 老数据迁移：
+   *  - 早期版本的角色叫「管理员」，现在统一叫「系统管理员」
+   *  - 补上「是否启用」字段
+   * 迁移后老账号不会被锁在门外。
+   */
+  function migrate() {
+    var list = accounts();
+    var changed = false;
+
+    list.forEach(function (a) {
+      if (a.role === '管理员') {
+        a.role = '系统管理员';
+        changed = true;
+      }
+      if (a.enabled === undefined) {
+        a.enabled = a.status !== '已停用';
+        changed = true;
+      }
+      if (!a.enabled && a.status !== '已停用') {
+        a.status = '已停用';
+        changed = true;
+      }
+      if (a.enabled && a.status !== '正常') {
+        a.status = '正常';
+        changed = true;
+      }
+    });
+
+    if (changed) saveAccounts(list);
+    return changed;
   }
 
   function findByUsername(username) {
@@ -193,19 +237,27 @@
     var account = null;
 
     if (scope === 'employee') {
+      // 员工入口：属于员工名册的账号（HR、产品运营本身也是员工，也能从这里进）
       account = list.filter(function (a) {
-        if (a.role !== '员工' || a.status !== '正常') return false;
+        if (!a.employeeId) return false;
         if (a.username === input) return true;
-        return !!(a.employeeId && normalizeUsername(a.employeeId) === input);
+        return normalizeUsername(a.employeeId) === input;
       })[0] || null;
     } else {
+      // 管理入口：管理侧账号（管理员、HR、产品运营），系统管理员没有员工编号
       account = list.filter(function (a) {
-        return a.role !== '员工' && a.username === input && a.status === '正常';
+        return a.role !== '员工' && a.username === input;
       })[0] || null;
     }
 
+    // 账号不存在 / 密码不对：统一提示，不告诉对方是哪边错了
     if (!account || hashPassword(account.salt, password) !== account.passwordHash) {
       return { ok: false, message: LOGIN_FAILED };
+    }
+
+    // 密码对了，但账号被停用：明确告知
+    if (account.enabled === false) {
+      return { ok: false, message: ACCOUNT_DISABLED };
     }
 
     updateAccount(account.id, function (a) {
@@ -213,6 +265,33 @@
     });
     setCurrentUser(account.id);
     return { ok: true, account: account };
+  }
+
+  /** 账号是否启用 */
+  function isEnabled(accountId) {
+    var a = findById(accountId);
+    return !!a && a.enabled !== false;
+  }
+
+  /** 启用 / 停用账号 */
+  function setEnabled(accountId, enabled) {
+    return updateAccount(accountId, function (a) {
+      a.enabled = !!enabled;
+      a.status = enabled ? '正常' : '已停用';
+      a.updatedAt = new Date().toISOString();
+    });
+  }
+
+  /** 修改账号的角色 */
+  function setRole(accountId, role) {
+    if ((O.permissions ? O.permissions.ROLES : []).indexOf(role) < 0) {
+      return { ok: false, message: '角色不存在' };
+    }
+    var updated = updateAccount(accountId, function (a) {
+      a.role = role;
+      a.updatedAt = new Date().toISOString();
+    });
+    return updated ? { ok: true, account: updated } : { ok: false, message: '找不到这个账号' };
   }
 
   /** 修改密码 */
@@ -285,17 +364,22 @@
 
   O.auth = {
     MIN_PASSWORD: MIN_PASSWORD,
-    ROLES: ROLES,
-    SAMPLE_EMPLOYEE_PASSWORD: SAMPLE_EMPLOYEE_PASSWORD,
+    SAMPLE_PASSWORD: SAMPLE_PASSWORD,
     LOGIN_FAILED: LOGIN_FAILED,
+    ACCOUNT_DISABLED: ACCOUNT_DISABLED,
     accounts: accounts,
     hasAccounts: hasAccounts,
     findByUsername: findByUsername,
+    findById: findById,
     validate: validate,
     createWorkspace: createWorkspace,
-    provisionSampleEmployees: provisionSampleEmployees,
+    provisionSampleAccounts: provisionSampleAccounts,
+    migrate: migrate,
     login: login,
     changePassword: changePassword,
+    isEnabled: isEnabled,
+    setEnabled: setEnabled,
+    setRole: setRole,
     currentUser: currentUser,
     setCurrentUser: setCurrentUser,
     clearCurrentUser: clearCurrentUser,

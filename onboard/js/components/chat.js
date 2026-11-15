@@ -36,9 +36,16 @@
   }
 
   function renderNoEvidence(answer, opts) {
+    var can = opts.can || {};
     var terms = (answer.matchedTerms || []).map(function (t) {
       return '<span class="term-tag">' + esc(t) + '</span>';
     }).join('');
+
+    var actions = '';
+    if (can.handoff !== false) {
+      actions += '<button class="btn btn-primary btn-sm" data-action="handoff">转人工</button>';
+    }
+    actions += '<button class="btn btn-ghost btn-sm" data-action="rewrite">换个说法再问</button>';
 
     return '' +
       '<div class="nofind">' +
@@ -48,10 +55,7 @@
           '<span class="nofind-terms-label">已检索的关键词：</span>' +
           (terms || '<span class="term-tag">（无有效关键词）</span>') +
         '</div>' +
-        '<div class="nofind-actions">' +
-          '<button class="btn btn-primary btn-sm" data-action="handoff">转人工</button>' +
-          '<button class="btn btn-ghost btn-sm" data-action="rewrite">换个说法再问</button>' +
-        '</div>' +
+        '<div class="nofind-actions">' + actions + '</div>' +
       '</div>';
   }
 
@@ -75,19 +79,28 @@
   }
 
   function renderActions(answer, opts) {
+    var can = opts.can || {};
     var actions = [];
     if (answer.state === 'hit') {
-      actions.push('<button class="act" data-action="feedback" data-value="helpful">有帮助</button>');
-      actions.push('<button class="act" data-action="feedback" data-value="unhelpful">没帮助</button>');
+      if (can.feedback !== false) {
+        actions.push('<button class="act" data-action="feedback" data-value="helpful">有帮助</button>');
+        actions.push('<button class="act" data-action="feedback" data-value="unhelpful">没帮助</button>');
+      }
       actions.push('<button class="act" data-action="copy">复制依据</button>');
       actions.push('<button class="act" data-action="rewrite">继续追问</button>');
     } else if (answer.state === 'ambiguous') {
       actions.push('<button class="act" data-action="rewrite">换个说法再问</button>');
-      actions.push('<button class="act" data-action="handoff">转人工</button>');
+      if (can.handoff !== false) {
+        actions.push('<button class="act" data-action="handoff">转人工</button>');
+      }
     } else if (answer.state === 'partial') {
-      actions.push('<button class="act" data-action="feedback" data-value="helpful">有帮助</button>');
-      actions.push('<button class="act" data-action="feedback" data-value="unhelpful">没帮助</button>');
-      actions.push('<button class="act" data-action="handoff">转人工</button>');
+      if (can.feedback !== false) {
+        actions.push('<button class="act" data-action="feedback" data-value="helpful">有帮助</button>');
+        actions.push('<button class="act" data-action="feedback" data-value="unhelpful">没帮助</button>');
+      }
+      if (can.handoff !== false) {
+        actions.push('<button class="act" data-action="handoff">转人工</button>');
+      }
     }
     return actions.length ? '<div class="msg-actions">' + actions.join('') + '</div>' : '';
   }

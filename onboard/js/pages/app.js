@@ -2,7 +2,8 @@
  * 初见 Onboard · 主界面外壳
  *
  * 负责：登录 / 创建工作空间 / 导航切换 / 页面标题 / 修改密码 / 退出登录。
- * 问答页和工单页的业务逻辑在 js/pages/employee.js 里。
+ * 页面能不能打开，一律由 js/core/permissions.js 判定 —— 隐藏导航只是"不给你看入口"，
+ * 真正的拦截在 route() 里：直接改地址栏访问同样会被拒绝。
  */
 (function (root) {
   var O = root.Onboard;
@@ -16,11 +17,9 @@
     faq: '常见问题',
     hr: '员工与制度',
     ops: '回答质量',
-    learn: '学习中心'
+    learn: '学习中心',
+    accounts: '账号与权限'
   };
-
-  /** 只有管理身份能进的页面 */
-  var ADMIN_PANES = ['hr', 'ops', 'learn'];
 
   var el = {};
   var currentUser = null;
@@ -59,16 +58,25 @@
     el.authFoot = document.getElementById('authFoot');
     el.forgotNote = document.getElementById('forgotNote');
     el.employeeDemoHint = document.getElementById('employeeDemoHint');
+    el.deniedText = document.getElementById('deniedText');
+    el.deniedHome = document.getElementById('deniedHome');
 
     bindAuthForms();
     bindShell();
 
     O.store.init(O.seed.build()).then(function () {
-      ensureSampleEmployees();
+      O.auth.migrate();        // 老账号的角色名、启用状态迁移
+      ensureSampleAccounts();  // 补齐示例账号
 
       var session = O.auth.currentUser();
       if (session) {
-        enterApp(session, false);
+        if (session.enabled === false) {
+          O.auth.clearCurrentUser();
+          showLogin();
+          O.components.toast.show('该账号已停用，请联系系统管理员', 'warn');
+        } else {
+          enterApp(session, false);
+        }
       } else if (O.auth.hasAccounts()) {
         showLogin();
       } else {
@@ -78,24 +86,20 @@
   }
 
   /**
-   * 补齐示例员工账号。
-   * 工作空间可能是在"示例员工账号"这个功能之前创建的（或者创建时没勾选），
-   * 那样系统里就一个员工账号都没有，文档里写的 E1001 登不进去。
-   * 这里做一次补齐：只要一个员工账号都没有，就补上那几个示例账号。
-   * 已经存在的账号不会被覆盖。
+   * 补齐示例账号。
+   * 工作空间可能是在示例账号这个功能之前创建的，那样系统里一个员工账号都没有，
+   * 登录页上写着的 E1001 就登不进去。这里做一次补齐，已存在的账号不会被覆盖。
    */
-  function ensureSampleEmployees() {
+  function ensureSampleAccounts() {
     if (!O.auth.hasAccounts()) return;   // 还没创建工作空间，等创建流程自己处理
     var employees = O.auth.accounts().filter(function (a) { return a.role === '员工'; });
     if (employees.length) return;
 
-    var created = O.auth.provisionSampleEmployees();
+    var created = O.auth.provisionSampleAccounts();
     if (created.length) {
-      console.log('[初见] 已补齐示例员工账号：' + created.map(function (a) { return a.username; }).join('、'));
-      O.components.toast.show(
-        '已为示例员工开通演示账号（' + created.map(function (a) { return a.username; }).join('、') + '）',
-        'ok'
-      );
+      console.log('[初见] 已补齐示例账号：' + created.map(function (a) {
+        return a.username + '(' + a.role + ')';
+      }).join('、'));
     }
   }
 
@@ -121,10 +125,6 @@
     el.authFoot.textContent = '账号由公司管理员分配，无公开注册。';
     if (el.forgotNote) el.forgotNote.hidden = true;
 
-    // 每次回到登录页都确认一遍示例员工账号还在
-    // （老工作空间是在这个功能之前创建的，登录页上写的 E1001 就登不进去）
-    ensureSampleEmployees();
-
     var showPwd = document.getElementById('showPassword');
     if (showPwd) {
       showPwd.checked = false;
@@ -135,6 +135,9 @@
     var pwd = document.getElementById('loginPassword');
     if (userInput) userInput.value = '';
     if (pwd) pwd.value = '';
+
+    // 每次回到登录页都确认一遍示例账号还在
+    ensureSampleAccounts();
 
     applyScope(loginScope);
     setTimeout(function () { document.getElementById('loginUsername').focus(); }, 40);
@@ -157,7 +160,6 @@
     var input = document.getElementById('loginUsername');
     if (input) input.placeholder = text.placeholder;
 
-    // 示例账号提示只在员工入口下出现
     if (el.employeeDemoHint) {
       el.employeeDemoHint.hidden = loginScope !== 'employee';
     }
@@ -173,7 +175,6 @@
     var setupSubmit = document.getElementById('setupSubmit');
     if (setupSubmit) {
       setupSubmit.addEventListener('click', function () {
-        var sample = document.getElementById('setupSample');
         var input = {
           name: document.getElementById('setupName').value,
           dept: document.getElementById('setupDept').value,
@@ -193,7 +194,6 @@
       });
     }
 
-    // 回车即提交
     ['setupName', 'setupDept', 'setupUsername', 'setupPassword', 'setupConfirm'].forEach(function (id) {
       var input = document.getElementById(id);
       if (!input) return;
@@ -269,7 +269,8 @@
     el.appShell.hidden = false;
 
     document.getElementById('userName').textContent = user.name;
-    document.getElementById('userMeta').textContent = (user.dept || '—') + ' · ' + (user.role || '—');
+    document.getElementById('userMeta').textContent =
+      (user.dept || '—') + ' · ' + O.permissions.roleName(user.role);
     var avatar = document.getElementById('userAvatar');
     avatar.textContent = (user.name || '初').charAt(0);
 
@@ -280,7 +281,7 @@
       var ws = O.auth.workspace();
       welcomeText.textContent = '欢迎使用初见onboard。' +
         (ws ? '当前工作空间：' + ws.name + '。' : '') +
-        '这里是工作概览，接下来的每一步都会围绕它展开。';
+        '当前身份：' + O.permissions.roleName(user.role) + '。';
     }
 
     var date = document.getElementById('pageDate');
@@ -294,39 +295,66 @@
       O.pages.employee.init(user);
     }
 
-    // 员工身份看不到「管理」区的入口
-    var isEmployee = O.auth.isEmployee(user);
-    O.dom.$$('#sideMenu [data-role="admin"]').forEach(function (node) {
-      node.hidden = isEmployee;
-    });
+    if (O.pages.accounts && O.pages.accounts.init) {
+      O.pages.accounts.init(user);
+    }
 
-    // 员工直接进「员工问答」，管理账号进「工作概览」。
-    // 只有"刚刚登录成功"时才重置落地页；刷新页面时保留原来停在哪一页。
-    if (isFreshLogin) {
-      window.location.hash = isEmployee ? '#/chat' : '#/overview';
-    } else if (!window.location.hash || window.location.hash === '#/') {
-      window.location.hash = isEmployee ? '#/chat' : '#/overview';
+    applyNavPermissions();
+
+    // 落地页：按角色决定他能进的第一个页面
+    if (isFreshLogin || !window.location.hash || window.location.hash === '#/') {
+      window.location.hash = '#/' + O.permissions.homePage(user);
     }
     route();
   }
 
-  function logout() {
+  /** 导航栏只显示这个角色能进的页面（入口隐藏，权限拦截在 route()） */
+  function applyNavPermissions() {
+    var allowed = O.permissions.allowedPages(currentUser);
+    O.dom.$$('#sideMenu a[data-pane]').forEach(function (a) {
+      a.hidden = allowed.indexOf(a.getAttribute('data-pane')) < 0;
+    });
+    O.dom.$$('#sideMenu .nav-group-title').forEach(function (t) {
+      t.hidden = false;
+    });
+  }
+
+  function logout(message) {
     O.auth.clearCurrentUser();
     currentUser = null;
     showLogin();
+    if (message) O.components.toast.show(message, 'warn');
   }
 
   /* ---------------------------------------------------------
-   * 导航
+   * 导航与路由（这里是权限真正生效的地方）
    * ------------------------------------------------------- */
   function route() {
-    var hash = (window.location.hash || '#/overview').replace('#/', '');
-    var target = PAGE_TITLES[hash] ? hash : 'overview';
+    if (!currentUser) return;
 
-    // 员工身份进不了管理区
-    if (currentUser && O.auth.isEmployee(currentUser) && ADMIN_PANES.indexOf(target) >= 0) {
-      target = 'chat';
-      window.location.hash = '#/chat';
+    // 登录期间账号被停用 → 立刻退出。
+    // 这里重新读一次账号记录，不能用登录时缓存在内存里的那份，
+    // 否则管理员在别处停用了他，本机这边还当自己是正常状态。
+    var live = O.auth.findById(currentUser.id);
+    if (!live || live.enabled === false) {
+      logout('该账号已停用，已退出登录');
+      return;
+    }
+    currentUser = live;
+
+    var hash = (window.location.hash || '').replace('#/', '');
+    var target = PAGE_TITLES[hash] ? hash : '';
+
+    if (!target) {
+      target = O.permissions.homePage(currentUser);
+      window.location.hash = '#/' + target;
+      return;
+    }
+
+    // 没有权限 → 直接拒绝，不显示那个页面
+    if (!O.permissions.canView(currentUser, target)) {
+      showDenied(target);
+      return;
     }
 
     O.dom.$$('.pane').forEach(function (pane) {
@@ -341,6 +369,23 @@
 
     if (O.pages.employee && O.pages.employee.onShow) {
       O.pages.employee.onShow(target);
+    }
+  }
+
+  /** 无权访问时显示的拒绝页 */
+  function showDenied(target) {
+    O.dom.$$('.pane').forEach(function (pane) {
+      pane.classList.toggle('is-active', pane.id === 'pane-denied');
+    });
+    O.dom.$$('#sideMenu a').forEach(function (a) {
+      a.classList.remove('is-active');
+    });
+    el.pageTitle.textContent = '无权访问';
+    if (el.deniedText) {
+      el.deniedText.textContent = O.permissions.denyMessage(currentUser, target);
+    }
+    if (el.deniedHome) {
+      el.deniedHome.setAttribute('href', '#/' + O.permissions.homePage(currentUser));
     }
   }
 

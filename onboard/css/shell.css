@@ -482,6 +482,24 @@
   line-height: 1.7;
 }
 
+/* 账号与权限页 */
+.switch-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.switch-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue-500);
+  cursor: pointer;
+}
+table.tbl select.select { min-height: 32px; padding: 2px var(--space-2); font-size: var(--fs-sm); }
+
 /* 窄屏 */
 @media (max-width: 900px) {
   .side-nav { width: 68px; flex: 0 0 68px; }

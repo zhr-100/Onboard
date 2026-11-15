@@ -24,7 +24,10 @@
     corpus: null,
     corpusSig: '',
     sessionId: null,
-    ready: false
+    ready: false,
+    user: null,
+    canHandoff: false,
+    canFeedback: false
   };
 
   var el = {};
@@ -42,6 +45,12 @@
     var handoff = document.getElementById('chatHandoff');
 
     if (!el.chatScroll) return;
+
+    state.user = user || null;
+    // 权限在系统内部判定：这里只是决定要不要画这个按钮
+    state.canHandoff = O.permissions.can(state.user, 'action.handoff');
+    state.canFeedback = O.permissions.can(state.user, 'action.feedback');
+    if (handoff) handoff.hidden = !state.canHandoff;
 
     O.components.citation.bind();
     O.components.ticket.bindModal();
@@ -135,6 +144,30 @@
   /* ---------------------------------------------------------
    * 问答
    * ------------------------------------------------------- */
+
+  /** 当前身份能做的操作（渲染时用） */
+  function canFlags() {
+    return { handoff: state.canHandoff, feedback: state.canFeedback };
+  }
+
+  /** 实时读取当前账号（角色或启用状态可能刚被别人改过） */
+  function liveUser() {
+    if (!state.user) return null;
+    return O.auth.findById(state.user.id) || state.user;
+  }
+
+  /**
+   * 转人工前再核一次权限。
+   * 按钮藏起来只是"不给你看入口"，这里才是真正的拦截。
+   */
+  function guardHandoff(question, answer, logId) {
+    if (!O.permissions.can(liveUser(), 'action.handoff')) {
+      O.components.toast.show('当前角色没有转人工的权限', 'warn');
+      return;
+    }
+    openHandoff(question, answer, logId);
+  }
+
   function renderWelcome() {
     var wrap = document.createElement('div');
     wrap.className = 'welcome';
@@ -227,7 +260,8 @@
 
       var assistantEl = O.components.chat.renderAssistant(answer, {
         logId: logId,
-        onHandoff: function (a) { openHandoff(question, a, logId); },
+        can: canFlags(),
+        onHandoff: function (a) { guardHandoff(question, a, logId); },
         onPick: function (candidate, a) { pickCandidate(candidate, a, logId); },
         onFeedback: function (value, a, id) { setFeedback(id, value); },
         onRewrite: function () { el.chatInput.focus(); }
@@ -256,7 +290,8 @@
 
     var assistantEl = O.components.chat.renderAssistant(built, {
       logId: logId,
-      onHandoff: function (a) { openHandoff(built.text, a, logId); },
+      can: canFlags(),
+      onHandoff: function (a) { guardHandoff(built.text, a, logId); },
       onPick: function () { },
       onFeedback: function (value, a, id) { setFeedback(id, value); },
       onRewrite: function () { el.chatInput.focus(); }
@@ -314,6 +349,11 @@
    * 工单
    * ------------------------------------------------------- */
   function openHandoff(question, answer, logId) {
+    // 权限在系统内部再核一次：按钮藏了也不能绕过
+    if (!O.permissions.can(liveUser(), 'action.handoff')) {
+      O.components.toast.show('当前角色没有转人工的权限', 'warn');
+      return;
+    }
     O.components.ticket.openHandoff({
       question: question || '',
       onSubmit: function (text, category) {
@@ -441,7 +481,8 @@
       } else if (m.answer) {
         el.chatScroll.appendChild(O.components.chat.renderAssistant(m.answer, {
           logId: m.logId,
-          onHandoff: function (a) { openHandoff(m.text, a, m.logId); },
+          can: canFlags(),
+          onHandoff: function (a) { guardHandoff(m.text, a, m.logId); },
           onPick: function (candidate, a) { pickCandidate(candidate, a, m.logId); },
           onFeedback: function (value, a, id) { setFeedback(id || m.logId, value); },
           onRewrite: function () { el.chatInput.focus(); }

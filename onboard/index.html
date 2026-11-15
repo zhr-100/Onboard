@@ -134,10 +134,11 @@
       <a href="#/tickets" data-pane="tickets"><span class="nav-ico" aria-hidden="true">📮</span>我的工单</a>
       <a href="#/faq" data-pane="faq"><span class="nav-ico" aria-hidden="true">❓</span>常见问题</a>
 
-      <div class="nav-group-title" data-role="admin">管理</div>
-      <a href="#/hr" data-pane="hr" data-role="admin" class="is-soon"><span class="nav-ico" aria-hidden="true">👥</span>员工与制度</a>
-      <a href="#/ops" data-pane="ops" data-role="admin" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
-      <a href="#/learn" data-pane="learn" data-role="admin" class="is-soon"><span class="nav-ico" aria-hidden="true">📘</span>学习中心</a>
+      <div class="nav-group-title">管理</div>
+      <a href="#/hr" data-pane="hr" class="is-soon"><span class="nav-ico" aria-hidden="true">👥</span>员工与制度</a>
+      <a href="#/ops" data-pane="ops" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
+      <a href="#/learn" data-pane="learn" class="is-soon"><span class="nav-ico" aria-hidden="true">📘</span>学习中心</a>
+      <a href="#/accounts" data-pane="accounts" class="is-soon"><span class="nav-ico" aria-hidden="true">🔐</span>账号与权限</a>
     </nav>
 
     <!-- 底部：当前用户 -->
@@ -306,6 +307,34 @@
         </div>
       </section>
 
+      <!-- 账号与权限（系统管理员） -->
+      <section class="pane" id="pane-accounts">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>账号与权限</h2>
+              <p>在这里管理账号的角色和启用状态。权限的判定在系统内部完成，页面入口只是"不给你看"，真正的拦截在路由里。</p>
+            </div>
+            <div id="accountsPanel"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 无权访问 -->
+      <section class="pane" id="pane-denied">
+        <div class="placeholder">
+          <div class="placeholder-inner">
+            <span class="placeholder-step">已被拒绝</span>
+            <h3>无权访问</h3>
+            <p id="deniedText">你的角色没有查看该页面的权限。</p>
+            <p class="text-xs text-muted" style="margin-top:16px">
+              如果确实需要这个权限，请联系系统管理员调整你的账号角色。
+            </p>
+            <a class="btn btn-primary" id="deniedHome" href="#/overview" style="margin-top:20px">回到我的首页</a>
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 </div>
@@ -380,6 +409,7 @@
 <script src="js/core/sha256.js"></script>
 <script src="js/core/store.js"></script>
 <script src="js/core/seed.js"></script>
+<script src="js/core/permissions.js"></script>
 <script src="js/core/auth.js"></script>
 
 <script src="js/nlp/config.js"></script>
@@ -395,6 +425,7 @@
 <script src="js/components/ticket.js"></script>
 
 <script src="js/pages/app.js"></script>
+<script src="js/pages/accounts.js"></script>
 <script src="js/pages/employee.js"></script>
 </body>
 </html>
