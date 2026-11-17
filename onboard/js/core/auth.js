@@ -367,6 +367,8 @@
     SAMPLE_PASSWORD: SAMPLE_PASSWORD,
     LOGIN_FAILED: LOGIN_FAILED,
     ACCOUNT_DISABLED: ACCOUNT_DISABLED,
+    /** 供员工管理等模块复用同一套「盐 + 哈希」口径 */
+    hashPassword: hashPassword,
     accounts: accounts,
     hasAccounts: hasAccounts,
     findByUsername: findByUsername,

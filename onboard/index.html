@@ -135,7 +135,8 @@
       <a href="#/faq" data-pane="faq"><span class="nav-ico" aria-hidden="true">❓</span>常见问题</a>
 
       <div class="nav-group-title">管理</div>
-      <a href="#/hr" data-pane="hr" class="is-soon"><span class="nav-ico" aria-hidden="true">👥</span>员工与制度</a>
+      <a href="#/staff" data-pane="staff"><span class="nav-ico" aria-hidden="true">👥</span>员工管理</a>
+      <a href="#/hr" data-pane="hr" class="is-soon"><span class="nav-ico" aria-hidden="true">📋</span>员工与制度</a>
       <a href="#/ops" data-pane="ops" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
       <a href="#/learn" data-pane="learn" class="is-soon"><span class="nav-ico" aria-hidden="true">📘</span>学习中心</a>
       <a href="#/accounts" data-pane="accounts" class="is-soon"><span class="nav-ico" aria-hidden="true">🔐</span>账号与权限</a>
@@ -274,6 +275,19 @@
         </div>
       </section>
 
+      <!-- 员工管理（HR管理员 / 系统管理员） -->
+      <section class="pane" id="pane-staff">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>员工管理</h2>
+              <p>维护员工名册和登录账号。新增员工会同时开通账号，员工编号就是登录名，创建后不可修改。</p>
+            </div>
+            <div id="staffPanel"></div>
+          </div>
+        </div>
+      </section>
+
       <!-- 员工与制度（占位） -->
       <section class="pane" id="pane-hr">
         <div class="placeholder">
@@ -338,6 +352,156 @@
     </div>
   </div>
 </div>
+
+<!-- 新增员工 -->
+<div class="modal-mask" id="staffCreateModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="staffCreateTitle">
+    <div class="modal-head">
+      <h3 id="staffCreateTitle">新增员工</h3>
+      <button class="modal-close" id="staffCreateClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="staffName">姓名</label>
+        <input class="input" id="staffName" type="text" maxlength="20" placeholder="例如：王芳">
+      </div>
+      <div class="field">
+        <label for="staffCode">员工编号</label>
+        <input class="input" id="staffCode" type="text" maxlength="20" placeholder="例如：E1013">
+        <p class="hint">将作为登录账号使用，创建后不可修改。</p>
+      </div>
+      <div class="field">
+        <label for="staffDept">部门</label>
+        <input class="input" id="staffDept" type="text" maxlength="20" list="staffDeptOptions" placeholder="从已有部门里选，或直接输入新部门">
+      </div>
+      <div class="field">
+        <label for="staffRole">角色</label>
+        <select class="select" id="staffRole"></select>
+        <p class="hint" id="staffRoleHint" hidden></p>
+      </div>
+      <div class="field">
+        <label for="staffPassword">初始密码</label>
+        <input class="input" id="staffPassword" type="password" maxlength="64" placeholder="至少 6 位">
+      </div>
+      <div class="form-error" id="staffCreateError" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="staffCreateCancel">取消</button>
+      <button class="btn btn-primary" id="staffCreateSubmit">创建员工</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑员工 -->
+<div class="modal-mask" id="staffEditModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="staffEditTitle">
+    <div class="modal-head">
+      <h3 id="staffEditTitle">编辑员工</h3>
+      <button class="modal-close" id="staffEditClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="staffEditName">姓名</label>
+        <input class="input" id="staffEditName" type="text" maxlength="20">
+      </div>
+      <div class="field">
+        <label for="staffEditCode">员工编号</label>
+        <input class="input" id="staffEditCode" type="text" disabled>
+        <p class="hint">员工编号创建后不可修改。</p>
+      </div>
+      <div class="field">
+        <label for="staffEditDept">部门</label>
+        <input class="input" id="staffEditDept" type="text" maxlength="20" list="staffDeptOptions" placeholder="从已有部门里选，或直接输入新部门">
+      </div>
+      <div class="field">
+        <label for="staffEditRole">角色</label>
+        <input class="input" id="staffEditRole" type="text" disabled>
+        <p class="hint">如需调整角色，请到「账号与权限」页（仅系统管理员可操作）。</p>
+      </div>
+      <div class="field" id="staffEditAccountRow">
+        <label>账号状态</label>
+        <label class="switch-row">
+          <input type="checkbox" id="staffEditEnabled">
+          <span id="staffEditEnabledText">已启用</span>
+        </label>
+        <p class="hint">停用后该员工将无法登录；如他在登录中，下次操作时会自动退出。</p>
+      </div>
+      <div class="field" id="staffEditPasswordRow">
+        <label for="staffEditPassword">重置密码</label>
+        <input class="input" id="staffEditPassword" type="password" maxlength="64" placeholder="留空表示不修改">
+        <p class="hint">填写后将以新密码登录，至少 6 位。</p>
+      </div>
+      <p class="hint" id="staffEditNoAccount" hidden>这位员工还没有开通登录账号，如需开通请联系系统管理员。</p>
+      <div class="form-error" id="staffEditError" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="staffEditCancel">取消</button>
+      <button class="btn btn-primary" id="staffEditSubmit">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量导入员工 -->
+<div class="modal-mask" id="staffImportModal" hidden>
+  <div class="modal" style="max-width:760px" role="dialog" aria-modal="true" aria-labelledby="staffImportTitle">
+    <div class="modal-head">
+      <h3 id="staffImportTitle">批量导入员工</h3>
+      <button class="modal-close" id="staffImportClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="staffImportError" hidden></div>
+
+      <!-- 第一步：下载模板 / 选择文件 -->
+      <div id="staffImportPick">
+        <p class="hint" style="margin-bottom:16px;line-height:1.8">
+          1. 下载模板，按列填写（示例行请删除或修改后再上传）；<br>
+          2. 上传后先做逐行校验，确认无误才会写入；<br>
+          3. 「初始密码」列留空的行，将统一使用默认初始密码 <b>onboard123</b>，员工登录后可自行修改。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="staffImportTplBtn" type="button">下载模板</button>
+          <button class="btn btn-primary" id="staffImportPickBtn" type="button">选择 CSV 文件</button>
+          <input type="file" id="staffImportFile" accept=".csv,text/csv" hidden>
+        </div>
+        <p class="hint" style="margin-top:12px">支持 CSV 格式（Excel / WPS 可直接编辑），单次最多 500 行。角色列的可选值：员工、HR管理员、产品运营、系统管理员。</p>
+      </div>
+
+      <!-- 第二步：预览与校验 -->
+      <div id="staffImportPreview" hidden>
+        <p id="staffImportSummary" style="margin-bottom:4px"></p>
+        <p class="hint">有问题的行不会写入；可返回修改文件后重新上传。</p>
+        <div class="table-wrap staff-import-table">
+          <table class="tbl">
+            <thead><tr>
+              <th>行号</th><th>姓名</th><th>员工编号</th><th>部门</th><th>角色</th><th>初始密码</th><th>校验结果</th>
+            </tr></thead>
+            <tbody id="staffImportRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 第三步：导入结果 -->
+      <div id="staffImportResult" hidden>
+        <p id="staffImportResultSummary" style="margin-bottom:12px"></p>
+        <div class="table-wrap staff-import-table" id="staffImportSkippedWrap" hidden>
+          <table class="tbl">
+            <thead><tr><th>行号</th><th>跳过原因</th></tr></thead>
+            <tbody id="staffImportSkipped"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="staffImportCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="staffImportSubmit" type="button" hidden>确认导入</button>
+      <button class="btn btn-primary" id="staffImportDone" type="button" hidden>完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 部门候选（预置部门 + 名册里已有部门，由 JS 填充） -->
+<datalist id="staffDeptOptions"></datalist>
 
 <!-- ============================================================
      三、弹窗
@@ -411,6 +575,8 @@
 <script src="js/core/seed.js"></script>
 <script src="js/core/permissions.js"></script>
 <script src="js/core/auth.js"></script>
+<script src="js/core/staff.js"></script>
+<script src="js/core/csv.js"></script>
 
 <script src="js/nlp/config.js"></script>
 <script src="js/nlp/lexicon.js"></script>
@@ -426,6 +592,7 @@
 
 <script src="js/pages/app.js"></script>
 <script src="js/pages/accounts.js"></script>
+<script src="js/pages/staff.js"></script>
 <script src="js/pages/employee.js"></script>
 </body>
 </html>

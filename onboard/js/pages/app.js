@@ -15,6 +15,7 @@
     leave: '年假',
     tickets: '我的工单',
     faq: '常见问题',
+    staff: '员工管理',
     hr: '员工与制度',
     ops: '回答质量',
     learn: '学习中心',
@@ -64,7 +65,11 @@
     bindAuthForms();
     bindShell();
 
-    O.store.init(O.seed.build()).then(function () {
+    O.store.init(O.seed.build()).then(function (info) {
+      // localStorage 不可用（隐私/无痕窗口、浏览器限制）时存储会降级为内存：
+      // 页面一切正常，但刷新就全丢。必须明确告诉用户，不能静默。
+      if (info && info.available === false) showStorageWarning();
+
       O.auth.migrate();        // 老账号的角色名、启用状态迁移
       ensureSampleAccounts();  // 补齐示例账号
 
@@ -83,6 +88,15 @@
         showSetup();
       }
     });
+  }
+
+  /** 存储降级为内存时页面顶部的常驻提示条 */
+  function showStorageWarning() {
+    try { console.warn('[初见] localStorage 不可用，已降级为内存存储：刷新或关闭页面后，本次所有改动都会丢失'); } catch (e) { /* ignore */ }
+    var bar = document.createElement('div');
+    bar.className = 'storage-warn';
+    bar.textContent = '⚠ 当前浏览器无法持久保存数据（可能是隐私 / 无痕窗口）：刷新或关闭页面后，本次的改动会全部丢失。请改用普通窗口，或用 node server.js 打开本站。';
+    document.body.appendChild(bar);
   }
 
   /**
@@ -299,6 +313,10 @@
       O.pages.accounts.init(user);
     }
 
+    if (O.pages.staff && O.pages.staff.init) {
+      O.pages.staff.init(user);
+    }
+
     applyNavPermissions();
 
     // 落地页：按角色决定他能进的第一个页面
@@ -369,6 +387,10 @@
 
     if (O.pages.employee && O.pages.employee.onShow) {
       O.pages.employee.onShow(target);
+    }
+
+    if (O.pages.staff && O.pages.staff.onShow) {
+      O.pages.staff.onShow(target);
     }
   }
 

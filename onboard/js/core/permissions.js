@@ -18,6 +18,7 @@
     leave: 'view.leave',
     tickets: 'view.tickets',
     faq: 'view.faq',
+    staff: 'view.staff',
     hr: 'view.hr',
     ops: 'view.ops',
     learn: 'view.learn',
@@ -31,6 +32,7 @@
     leave: '年假',
     tickets: '我的工单',
     faq: '常见问题',
+    staff: '员工管理',
     hr: '员工与制度',
     ops: '回答质量',
     learn: '学习中心',
@@ -56,7 +58,7 @@
     ],
     'HR管理员': [
       'view.overview', 'view.chat', 'view.leave', 'view.tickets', 'view.faq',
-      'view.hr', 'view.learn',
+      'view.staff', 'view.hr', 'view.learn',
       'action.handoff', 'action.feedback', 'manage.hr'
     ],
     '产品运营': [

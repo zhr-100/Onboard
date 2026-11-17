@@ -196,10 +196,11 @@ const server = http.createServer(async function (req, res) {
   if (pathname === '/api/state' && req.method === 'GET') {
     const state = readState();
     if (state) return json(res, 200, state);
+    // 状态文件还不存在：只返回种子数据，不写盘。
+    // 在这里写盘会凭空造出一份“旧状态”，一旦浏览器里有更新的本地数据，
+    // 启动时的同步逻辑就可能被这份假旧状态误导。真正的写盘只发生在 PUT。
     const ctx = getSandbox();
-    const seeded = ctx.Onboard.seed.build();
-    writeState(seeded);
-    return json(res, 200, seeded);
+    return json(res, 200, ctx.Onboard.seed.build());
   }
 
   if (pathname === '/api/state' && req.method === 'PUT') {

@@ -24,7 +24,8 @@
     chatSessions: 'onboard.v1.chatSessions',
     accounts: 'onboard.v1.accounts',
     workspace: 'onboard.v1.workspace',
-    prefs: 'onboard.v1.prefs'
+    prefs: 'onboard.v1.prefs',
+    updatedAt: 'onboard.v1.stateUpdatedAt'
   };
 
   var COLLECTIONS = [
@@ -91,8 +92,19 @@
     try { return JSON.parse(raw); } catch (e) { return null; }
   }
 
+  /** 记录「本地最后一次改动」的时间，用来和服务端状态比谁更新 */
+  function touchLocalUpdated() {
+    writeRaw(KEYS.updatedAt, String(Date.now()));
+  }
+
+  function localUpdatedAt() {
+    var raw = readRaw(KEYS.updatedAt);
+    return raw ? (Number(raw) || 0) : 0;
+  }
+
   function set(name, value) {
     writeRaw(KEYS[name], JSON.stringify(value));
+    touchLocalUpdated();
     notify(name);
     scheduleServerSync();
   }
@@ -126,6 +138,7 @@
     COLLECTIONS.forEach(function (name) { removeRaw(KEYS[name]); });
     removeRaw(KEYS.seeded);
     applySeed(seedState);
+    touchLocalUpdated();
     notify('*');
     scheduleServerSync();
   }
@@ -162,7 +175,10 @@
       return Promise.resolve({ mode: mode, available: localAvailable });
     }
 
-    // http 模式：优先尝试从服务端读取持久化状态
+    // http 模式：优先尝试从服务端读取持久化状态。
+    // 关键：先比较「本地最后改动时间」和「服务端保存时间」，谁新用谁 ——
+    // 否则服务端文件一旦落后（服务停过、PUT 失败过、文件被删），
+    // 一次页面刷新就会把浏览器里的新数据整个冲掉。
     return fetch('/api/state', { headers: { Accept: 'application/json' } })
       .then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -171,11 +187,17 @@
       .then(function (data) {
         if (data && data.policies) {
           mode = 'server';
-          COLLECTIONS.forEach(function (name) {
-            if (data[name] !== undefined) writeRaw(KEYS[name], JSON.stringify(data[name]));
-          });
-          if (data.workspace) writeRaw(KEYS.workspace, JSON.stringify(data.workspace));
-          if (data.prefs) writeRaw(KEYS.prefs, JSON.stringify(data.prefs));
+          var serverSavedAt = Number(data.savedAt) || 0;
+          if (localUpdatedAt() > serverSavedAt) {
+            // 本地比服务端新：保留本地数据，并立刻推回服务端（自愈，重建状态文件）
+            scheduleServerSync();
+          } else {
+            COLLECTIONS.forEach(function (name) {
+              if (data[name] !== undefined) writeRaw(KEYS[name], JSON.stringify(data[name]));
+            });
+            if (data.workspace) writeRaw(KEYS.workspace, JSON.stringify(data.workspace));
+            if (data.prefs) writeRaw(KEYS.prefs, JSON.stringify(data.prefs));
+          }
           writeRaw(KEYS.seeded, JSON.stringify({ at: new Date().toISOString(), dataset: 'onboard-demo-v1', via: 'server' }));
         } else {
           mode = 'local';
@@ -207,12 +229,42 @@
     if (serverSyncTimer) clearTimeout(serverSyncTimer);
     serverSyncTimer = setTimeout(function () {
       serverSyncTimer = null;
-      fetch('/api/state', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state())
-      }).catch(function () { /* 落盘失败不影响本地使用 */ });
+      putState(Date.now(), 2);
     }, 400);
+  }
+
+  function putState(savedAt, retriesLeft) {
+    if (mode !== 'server' || typeof fetch !== 'function') return;
+    fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign(state(), { savedAt: savedAt }))
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    }).catch(function () {
+      // 落盘失败：本地数据还在、不影响使用，但不能悄悄吞掉 ——
+      // 提示一次，并自动重试，避免“服务停了一段时间，改动悄悄丢了”
+      notifySyncError();
+      if (retriesLeft > 0) {
+        setTimeout(function () { putState(Date.now(), retriesLeft - 1); }, 3000);
+      }
+    });
+  }
+
+  var syncErrorNotifiedAt = 0;
+
+  function notifySyncError() {
+    var now = Date.now();
+    if (now - syncErrorNotifiedAt < 60000) return;   // 一分钟内最多提示一次
+    syncErrorNotifiedAt = now;
+    try {
+      if (root.console && root.console.warn) {
+        root.console.warn('[初见] 数据落盘到服务端失败：本地改动仍可用，正在自动重试；请确认 node server.js 还在运行');
+      }
+    } catch (e) { /* ignore */ }
+    if (O.components && O.components.toast && root.document) {
+      O.components.toast.show('数据落盘到服务端失败，正在自动重试；期间请保持 node server.js 运行', 'warn');
+    }
   }
 
   /** 清理过长的历史数据，避免本地存储无限增长 */

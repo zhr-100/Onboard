@@ -482,6 +482,48 @@
   line-height: 1.7;
 }
 
+/* 员工管理页 */
+.staff-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.staff-cell .avatar {
+  width: 32px;
+  height: 32px;
+  font-size: var(--fs-sm);
+}
+.staff-name {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* 存储降级为内存时的常驻提示条 */
+.storage-warn {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  padding: 10px 20px;
+  background: var(--warn);
+  color: #fff;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  box-shadow: var(--shadow-2);
+}
+
+/* 员工管理 · 批量导入 */
+.staff-import-table {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+table.tbl tr.staff-row-bad td { background: var(--danger-bg); }
+
 /* 账号与权限页 */
 .switch-row {
   display: inline-flex;
