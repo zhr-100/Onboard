@@ -18,6 +18,7 @@
     leave: 'view.leave',
     tickets: 'view.tickets',
     faq: 'view.faq',
+    org: 'view.org',
     staff: 'view.staff',
     hr: 'view.hr',
     ops: 'view.ops',
@@ -32,6 +33,7 @@
     leave: '年假',
     tickets: '我的工单',
     faq: '常见问题',
+    org: '组织架构',
     staff: '员工管理',
     hr: '员工与制度',
     ops: '回答质量',
@@ -53,16 +55,16 @@
   /** 角色 → 权限清单 */
   var ROLE_PERMISSIONS = {
     '员工': [
-      'view.chat', 'view.leave', 'view.tickets', 'view.faq',
+      'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org',
       'action.handoff', 'action.feedback'
     ],
     'HR管理员': [
-      'view.overview', 'view.chat', 'view.leave', 'view.tickets', 'view.faq',
+      'view.overview', 'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org',
       'view.staff', 'view.hr', 'view.learn',
       'action.handoff', 'action.feedback', 'manage.hr'
     ],
     '产品运营': [
-      'view.overview', 'view.chat', 'view.tickets', 'view.learn', 'view.ops',
+      'view.overview', 'view.chat', 'view.tickets', 'view.learn', 'view.ops', 'view.org',
       'action.feedback', 'manage.retrieval'
     ],
     '系统管理员': ALL_PERMISSIONS.slice()

@@ -43,18 +43,59 @@
     })[0] || null;
   }
 
-  /** 部门候选：预置五个 + 名册里已经出现过的部门，去重后返回 */
+  /** 管理员手动新增的部门（只存名字，成员仍挂在员工名册的 dept 字段上） */
+  function extraDepartments() {
+    return (O.store.get('departments') || []).map(function (d) {
+      return typeof d === 'string' ? d : (d && d.name);
+    }).map(function (d) { return String(d || '').trim(); }).filter(Boolean);
+  }
+
+  /**
+   * 部门候选：预置五个 + 管理员新增的部门 + 名册里已经出现过的部门。
+   * 以「名册里的部门」为准，新增的部门只是让空部门也能先建出来。
+   */
   function departments() {
     var seen = {};
     var out = [];
-    PRESET_DEPARTMENTS.concat(employees().map(function (e) { return e.dept; }))
+    PRESET_DEPARTMENTS
+      .concat(extraDepartments())
+      .concat(employees().map(function (e) { return e.dept; }))
       .forEach(function (d) {
         d = String(d || '').trim();
-        if (!d || seen[d]) return;
-        seen[d] = true;
+        if (!d || seen[d.toLowerCase()]) return;
+        seen[d.toLowerCase()] = true;
         out.push(d);
       });
     return out;
+  }
+
+  /**
+   * 新增部门。只建目录，不预设任何人，也不设置负责人/汇报关系。
+   * 权限与员工管理一致：需要 manage.hr。
+   */
+  function addDepartment(name, actor) {
+    if (!canManage(actor)) return { ok: false, message: '你的角色没有管理部门的权限' };
+
+    var trimmed = String(name || '').trim();
+    if (!trimmed) return { ok: false, field: 'name', message: '请填写部门名称' };
+    if (trimmed.length > 20) return { ok: false, field: 'name', message: '部门名不能超过 20 个字' };
+
+    var lower = trimmed.toLowerCase();
+    if (departments().some(function (d) { return d.toLowerCase() === lower; })) {
+      return { ok: false, field: 'name', message: '这个部门已经存在' };
+    }
+
+    var now = new Date().toISOString();
+    var department = {
+      id: O.format.createId('DPT'),
+      name: trimmed,
+      createdAt: now,
+      createdBy: actor ? actor.id : null
+    };
+    var list = O.store.get('departments') || [];
+    list.push(department);
+    O.store.set('departments', list);
+    return { ok: true, department: department };
   }
 
   /** 这个人有没有管理员工的权限 */
@@ -378,6 +419,8 @@
     findEmployee: findEmployee,
     accountOf: accountOf,
     departments: departments,
+    extraDepartments: extraDepartments,
+    addDepartment: addDepartment,
     canManage: canManage,
     assignableRoles: assignableRoles,
     createEmployee: createEmployee,

@@ -20,6 +20,8 @@
     return {
       policies: clone(d.policies),
       employees: clone(d.employees),
+      // 部门以名册里的部门为准；这里只存「管理员手动新增」的部门
+      departments: [],
       leaveBalances: clone(d.leaveBalances),
       tickets: clone(d.tickets),
       onboardingTasks: clone(d.onboardingTasks),

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/shell.css">
   <link rel="stylesheet" href="css/chat.css">
+  <link rel="stylesheet" href="css/org.css">
 </head>
 <body>
 
@@ -133,6 +134,7 @@
       <a href="#/leave" data-pane="leave"><span class="nav-ico" aria-hidden="true">📅</span>年假</a>
       <a href="#/tickets" data-pane="tickets"><span class="nav-ico" aria-hidden="true">📮</span>我的工单</a>
       <a href="#/faq" data-pane="faq"><span class="nav-ico" aria-hidden="true">❓</span>常见问题</a>
+      <a href="#/org" data-pane="org"><span class="nav-ico" aria-hidden="true">🏢</span>组织架构</a>
 
       <div class="nav-group-title">管理</div>
       <a href="#/staff" data-pane="staff"><span class="nav-ico" aria-hidden="true">👥</span>员工管理</a>
@@ -271,6 +273,19 @@
             <span class="placeholder-step">下一步交付</span>
             <h3>常见问题</h3>
             <p>按假期、考勤、报销、入职、福利分类列出高频问题，点一下就能直接得到带依据的答案。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 组织架构（全体员工可见；管理操作仅 HR管理员 / 系统管理员） -->
+      <section class="pane" id="pane-org">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>组织架构</h2>
+              <p>以公司为顶层，按部门查看在职成员。本页只做人员目录，不展示职位，也不表示汇报关系。</p>
+            </div>
+            <div id="orgPanel"></div>
           </div>
         </div>
       </section>
@@ -500,7 +515,29 @@
   </div>
 </div>
 
-<!-- 部门候选（预置部门 + 名册里已有部门，由 JS 填充） -->
+<!-- 新增部门（组织架构页，HR管理员 / 系统管理员） -->
+<div class="modal-mask" id="deptCreateModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deptCreateTitle">
+    <div class="modal-head">
+      <h3 id="deptCreateTitle">新增部门</h3>
+      <button class="modal-close" id="deptCreateClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="deptName">部门名称</label>
+        <input class="input" id="deptName" type="text" maxlength="20" placeholder="例如：客户成功部">
+        <p class="hint">新增后部门会出现在组织架构里；成员需要在「员工管理」中把部门填成这个名称。</p>
+      </div>
+      <div class="form-error" id="deptCreateError" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="deptCreateCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="deptCreateSubmit" type="button">创建部门</button>
+    </div>
+  </div>
+</div>
+
+<!-- 部门候选（预置部门 + 管理员新增部门 + 名册里已有部门，由 JS 填充） -->
 <datalist id="staffDeptOptions"></datalist>
 
 <!-- ============================================================
@@ -593,6 +630,7 @@
 <script src="js/pages/app.js"></script>
 <script src="js/pages/accounts.js"></script>
 <script src="js/pages/staff.js"></script>
+<script src="js/pages/org.js"></script>
 <script src="js/pages/employee.js"></script>
 </body>
 </html>

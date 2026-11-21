@@ -15,6 +15,7 @@
     leave: '年假',
     tickets: '我的工单',
     faq: '常见问题',
+    org: '组织架构',
     staff: '员工管理',
     hr: '员工与制度',
     ops: '回答质量',
@@ -317,6 +318,10 @@
       O.pages.staff.init(user);
     }
 
+    if (O.pages.org && O.pages.org.init) {
+      O.pages.org.init(user);
+    }
+
     applyNavPermissions();
 
     // 落地页：按角色决定他能进的第一个页面
@@ -391,6 +396,10 @@
 
     if (O.pages.staff && O.pages.staff.onShow) {
       O.pages.staff.onShow(target);
+    }
+
+    if (O.pages.org && O.pages.org.onShow) {
+      O.pages.org.onShow(target);
     }
   }
 

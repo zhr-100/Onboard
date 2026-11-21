@@ -1,0 +1,132 @@
+/* ===========================================================
+   初见 Onboard · 组织架构页
+   公司（顶层）→ 部门卡片 → 成员目录；不画汇报线。
+   =========================================================== */
+
+/* 顶层：公司 */
+.org-company {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(120deg, var(--navy-800) 0%, var(--navy-600) 100%);
+  color: #fff;
+  box-shadow: var(--shadow-2);
+}
+
+.org-company-mark {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.org-company-text { min-width: 0; }
+.org-company-text h3 {
+  font-size: var(--fs-xl);
+  margin-bottom: 2px;
+}
+.org-company-text p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.org-company-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+.org-company-actions .btn-outline-light { min-height: 36px; }
+
+/* 部门格子 */
+.org-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--space-4);
+}
+
+.org-dept {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+.org-dept-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.org-dept-head h3 {
+  font-size: var(--fs-md);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-members {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.org-member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 7px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.org-member:hover { background: var(--surface-2); }
+.org-member .avatar {
+  width: 34px;
+  height: 34px;
+  font-size: var(--fs-sm);
+}
+.org-member-name {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-empty {
+  margin: 0;
+  padding: var(--space-3) var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.org-note {
+  margin-top: var(--space-5);
+  line-height: 1.8;
+}
+
+@media (max-width: 700px) {
+  .org-company { flex-wrap: wrap; }
+  .org-company-actions { margin-left: 0; width: 100%; }
+}

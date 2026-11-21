@@ -16,6 +16,7 @@
     seeded: 'onboard.v1.seeded',
     policies: 'onboard.v1.policies',
     employees: 'onboard.v1.employees',
+    departments: 'onboard.v1.departments',
     leaveBalances: 'onboard.v1.leaveBalances',
     tickets: 'onboard.v1.tickets',
     onboardingTasks: 'onboard.v1.onboardingTasks',
@@ -29,7 +30,7 @@
   };
 
   var COLLECTIONS = [
-    'policies', 'employees', 'leaveBalances', 'tickets',
+    'policies', 'employees', 'departments', 'leaveBalances', 'tickets',
     'onboardingTasks', 'onboardingTemplates', 'questionLogs', 'chatSessions',
     'accounts'
   ];
