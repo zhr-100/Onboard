@@ -307,6 +307,7 @@
     el.importSubmit.hidden = true;
     el.importError.hidden = true;
     el.importFile.value = '';
+    if (el.importCancel) el.importCancel.textContent = '取消';
     el.importModal.hidden = false;
   }
 
@@ -457,6 +458,7 @@
     el.importSubmit.textContent = willChange.length
       ? '确认导入（生成 ' + willChange.length + ' 条对账调整流水）'
       : '余额全部一致，无需调整';
+    if (el.importCancel) el.importCancel.textContent = '取消';
     el.importHint.textContent = same.length
       ? ('其中 ' + same.length + ' 行导入值与现有余额一致，不会产生流水。')
       : '';
@@ -476,6 +478,9 @@
     el.importPreview.hidden = true;
     el.importResult.hidden = false;
     el.importSubmit.hidden = true;
+    // 已经写进去了，这时候还叫「取消」很奇怪 —— 换成「完成」，
+    // 点它关掉弹窗回到台账。
+    if (el.importCancel) el.importCancel.textContent = '完成';
     el.importResultSummary.innerHTML =
       '导入完成：生成 <b>' + result.count + '</b> 条对账调整流水。' +
       '原有流水全部保留，余额已按「所有流水之和」重新计算。';
@@ -572,8 +577,8 @@
     // 导入
     var importClose = document.getElementById('laImportClose');
     if (importClose) importClose.addEventListener('click', closeImportModal);
-    var importCancel = document.getElementById('laImportCancel');
-    if (importCancel) importCancel.addEventListener('click', closeImportModal);
+    el.importCancel = document.getElementById('laImportCancel');
+    if (el.importCancel) el.importCancel.addEventListener('click', closeImportModal);
     var importSubmit = document.getElementById('laImportSubmit');
     if (importSubmit) importSubmit.addEventListener('click', submitImport);
     var templateBtn = document.getElementById('laTemplateBtn');
