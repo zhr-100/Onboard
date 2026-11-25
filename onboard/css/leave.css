@@ -127,3 +127,24 @@
 
 /* 台账来源说明 */
 .leave-note { margin-top: var(--space-3); line-height: 1.8; }
+
+/* ---- 我的年假台账（员工端，与 HR 后台同一套表格） ---- */
+.leave-ledger-section { margin-top: 0; margin-bottom: var(--space-6); }
+
+.leave-ledger-section .card { padding: 0; overflow: hidden; }
+
+/* 展开的流水明细 */
+.leave-detail {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.leave-detail-head {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-3);
+}

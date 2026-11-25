@@ -38,8 +38,8 @@
     O.store.set('leaveLedger', list);
   }
 
-  /** 某员工某年度的全部流水，按时间倒序（新的在前） */
-  function entriesOf(employeeId, year) {
+  /** 某员工某年度的全部流水，按时间倒序（新的在前）—— 内部用，不做权限判断 */
+  function rawEntries(employeeId, year) {
     return ledger().filter(function (e) {
       return e.employeeId === employeeId && Number(e.year) === Number(year);
     }).sort(function (a, b) {
@@ -48,9 +48,33 @@
     });
   }
 
-  /** 某员工某年度的余额 = 所有流水之和 */
-  function balanceOf(employeeId, year) {
-    return entriesOf(employeeId, year).reduce(function (sum, e) {
+  /**
+   * 取某员工某年度的流水 —— **对外的入口，必须带权限判断**。
+   *
+   * 没有 manage.leave 权限（普通员工）时，只能取自己的；
+   * 想取别人的，返回空数组 —— 不是报错，是「没有就是没有」。
+   *
+   * 这条检查在核心层，不在页面：员工即使改地址栏、改页面代码、
+   * 在控制台直接调这个函数，也拿不到别人的流水。
+   */
+  function entriesOf(employeeId, year, actor) {
+    if (!actor) return [];
+    var account = O.auth.findById(actor.id) || actor;
+    var isManager = O.permissions.can(account, 'manage.leave');
+    if (!isManager && account.employeeId !== employeeId) return [];
+    return rawEntries(employeeId, year);
+  }
+
+  /** 某员工某年度的余额 = 所有流水之和（同样要带权限判断） */
+  function balanceOf(employeeId, year, actor) {
+    return entriesOf(employeeId, year, actor).reduce(function (sum, e) {
+      return sum + (Number(e.delta) || 0);
+    }, 0);
+  }
+
+  /** 余额（内部用，不做权限判断）—— 只在已确认过权限的管理路径里调用 */
+  function rawBalanceOf(employeeId, year) {
+    return rawEntries(employeeId, year).reduce(function (sum, e) {
       return sum + (Number(e.delta) || 0);
     }, 0);
   }
@@ -75,11 +99,12 @@
   }
 
   /**
-   * 列出全部「员工 × 年度」台账行。
-   * 员工来自名册（有账号的才列出来 —— 账号才是 HR 维护的对象），
-   * 年度来自该员工的流水。
+   * 列出全部「员工 × 年度」台账行（HR 后台用）。
+   * 必须有 manage.leave 权限，否则返回空。
    */
-  function rows() {
+  function rows(actor) {
+    if (!canManage(actor)) return [];
+
     var employees = O.staff.employees();
     var list = [];
 
@@ -91,11 +116,11 @@
       var years = yearsOf(emp.id);
       if (!years.length) {
         // 没有流水的员工：仍列出来，余额显示为 0，方便 HR 知道还可以给谁建账
-        list.push(makeRow(emp, account, currentYear()));
+        list.push(makeRow(emp, account, currentYear(), actor));
         return;
       }
       years.forEach(function (y) {
-        list.push(makeRow(emp, account, y));
+        list.push(makeRow(emp, account, y, actor));
       });
     });
 
@@ -108,8 +133,8 @@
     return list;
   }
 
-  function makeRow(employee, account, year) {
-    var entries = entriesOf(employee.id, year);
+  function makeRow(employee, account, year, actor) {
+    var entries = entriesOf(employee.id, year, actor);
     var balance = entries.reduce(function (s, e) { return s + (Number(e.delta) || 0); }, 0);
     var last = entries[0] || null;
     return {
@@ -124,6 +149,68 @@
     };
   }
 
+  /**
+   * 按指定员工取台账行（管理视角）。
+   *
+   * 同样要权限：普通员工调用只会拿到空数组。
+   */
+  function rowsFor(employeeId, actor) {
+    if (!canManage(actor)) return [];
+
+    var employee = O.staff.employees().filter(function (e) {
+      return e.id === employeeId;
+    })[0];
+    if (!employee) return [];
+
+    var account = O.staff.accountOf(employee);
+    var years = yearsOf(employeeId);
+    if (!years.length) {
+      return [makeRow(employee, account, currentYear(), actor)];
+    }
+    return years.map(function (year) {
+      return makeRow(employee, account, year, actor);
+    });
+  }
+
+  /* ---------------------------------------------------------
+   * 员工端：只看本人
+   * ------------------------------------------------------- */
+
+  /**
+   * 员工端「我的年假」的台账行。
+   *
+   * **只按当前登录账号取数，不接受外部传入的员工编号** ——
+   * 签名里根本没有 employeeId 参数，员工即使知道别人的编号、
+   * 改地址栏或改页面代码，都拿不到别人的记录。
+   * 身份从账号记录里取（而不是从页面参数取），改页面也没用。
+   */
+  function myRows(actor) {
+    if (!actor) return [];
+    var account = O.auth.findById(actor.id) || actor;
+    var employeeId = account.employeeId;
+    if (!employeeId) return [];
+
+    var employee = O.staff.employees().filter(function (e) {
+      return e.id === employeeId;
+    })[0];
+    if (!employee) return [];
+
+    var years = yearsOf(employeeId);
+    if (!years.length) return [];
+
+    return years.map(function (year) {
+      return makeRow(employee, account, year, actor);
+    });
+  }
+
+  /** 员工端某年度的流水（同样只认当前登录账号） */
+  function myEntries(actor, year) {
+    if (!actor) return [];
+    var account = O.auth.findById(actor.id) || actor;
+    if (!account.employeeId) return [];
+    return entriesOf(account.employeeId, year, actor);
+  }
+
   function currentYear() {
     return new Date().getFullYear();
   }
@@ -134,8 +221,12 @@
 
   /**
    * 为还没有任何流水的员工建立初始账。
-   * 初始余额来自基线台账 leaveBalances（entitled + carriedOver），
-   * 已休、已预约的天数不进初始余额 —— 那是「用掉了多少」，不是「有多少额度」。
+   *
+   * 初始余额 = 应得 + 上年结转，这是**年假额度**。
+   *
+   * 为什么不含已用、已预约：流水账记的是「HR 维护的额度变动」，
+   * 它不会随员工休假自动变化 —— 休假记录在基线台账的 used/booked 里。
+   * 员工端的「可用」= 额度 − 已用 − 已预约，两个口径在页面上分开说明。
    */
   function ensureInitial(employeeId, year, actor) {
     if (hasLedger(employeeId)) return null;
@@ -156,7 +247,8 @@
       delta: total,
       reason: base
         ? ('初始建账：' + year + ' 年度应得 ' + entitled + ' 天' +
-          (carried ? '，含上年结转 ' + carried + ' 天' : ''))
+          (carried ? '，含上年结转 ' + carried + ' 天' : '') +
+          '，年假额度 ' + total + ' 天')
         : ('初始建账：' + year + ' 年度暂记 0 天，等待 HR 调整'),
       operator: actor ? (actor.name || '') : '系统',
       operatorId: actor ? (actor.id || '') : '',
@@ -170,6 +262,49 @@
   }
 
   /* ---------------------------------------------------------
+   * 口径迁移
+   * ------------------------------------------------------- */
+
+  /**
+   * 把初始建账流水重算为当前口径（应得 + 上年结转 = 年假额度）。
+   *
+   * 只有系统生成的 init 流水会被重算；HR 手动调整（adjust）和导入对账
+   * （reconcile）产生的一律不动 —— 那是历史变动，必须保留。
+   *
+   * 幂等：每次启动跑一遍，基线台账变了初始账就跟着变。
+   */
+  function migrateLedger() {
+    var list = ledger();
+    if (!list.length) return 0;
+
+    var balances = O.store.get('leaveBalances') || [];
+    var changed = 0;
+
+    list.forEach(function (e) {
+      if (e.type !== 'init') return;
+      var base = balances.filter(function (b) {
+        return b.employeeId === e.employeeId && Number(b.year) === Number(e.year);
+      })[0];
+      if (!base) return;
+
+      var entitled = Number(base.entitled) || 0;
+      var carried = Number(base.carriedOver) || 0;
+      var total = entitled + carried;
+
+      if (e.delta === total) return;
+
+      e.delta = total;
+      e.reason = '初始建账：' + e.year + ' 年度应得 ' + entitled + ' 天' +
+        (carried ? '，含上年结转 ' + carried + ' 天' : '') +
+        '，年假额度 ' + total + ' 天';
+      changed += 1;
+    });
+
+    if (changed) saveLedger(list);
+    return changed;
+  }
+
+  /* ---------------------------------------------------------
    * 调整
    * ------------------------------------------------------- */
 
@@ -177,7 +312,11 @@
    * 校验调整输入。
    * 返回 { ok, message, value } —— message 一律是中文，可直接显示给 HR。
    */
-  function validateAdjustment(input) {
+  function validateAdjustment(input, actor) {
+    if (!canManage(actor)) {
+      return { ok: false, field: 'employeeId', message: '你的角色没有管理年假的权限' };
+    }
+
     var employeeId = String((input && input.employeeId) || '').trim();
     var year = Number(input && input.year);
     var direction = String((input && input.direction) || '').trim();
@@ -231,7 +370,7 @@
     var delta = direction === 'add' ? days : -days;
 
     // 余额不能因为「减少」而变成负数
-    var current = balanceOf(employeeId, year);
+    var current = rawBalanceOf(employeeId, year);
     if (current + delta < 0) {
       return {
         ok: false,
@@ -260,7 +399,7 @@
     if (!canManage(actor)) {
       return { ok: false, message: '你的角色没有管理年假的权限' };
     }
-    var check = validateAdjustment(input);
+    var check = validateAdjustment(input, actor);
     if (!check.ok) return check;
 
     var v = check.value;
@@ -282,7 +421,7 @@
     return {
       ok: true,
       entry: entry,
-      balance: balanceOf(v.employeeId, v.year),
+      balance: rawBalanceOf(v.employeeId, v.year),
       message: (v.delta > 0 ? '已增加 ' : '已减少 ') + v.days + ' 天'
     };
   }
@@ -361,7 +500,7 @@
       return { ok: false, reason: '年假天数「' + daysText + '」超过 ' + MAX_BALANCE_DAYS + ' 天，请核对' };
     }
 
-    var current = balanceOf(employee.id, year);
+    var current = rawBalanceOf(employee.id, year);
     var diff = days - current;
 
     return {
@@ -475,8 +614,12 @@
     yearsOf: yearsOf,
     hasLedger: hasLedger,
     rows: rows,
+    rowsFor: rowsFor,
+    myRows: myRows,
+    myEntries: myEntries,
     currentYear: currentYear,
     ensureInitial: ensureInitial,
+    migrateLedger: migrateLedger,
     validateAdjustment: validateAdjustment,
     adjust: adjust,
     templateRows: templateRows,

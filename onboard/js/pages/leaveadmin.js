@@ -79,7 +79,7 @@
       return;
     }
 
-    var rows = O.leave.rows();
+    var rows = O.leave.rows(liveUser());
     var manage = canManage();
 
     panel.innerHTML =
@@ -106,6 +106,10 @@
     var importBtn = document.getElementById('laImportBtn');
     if (importBtn) importBtn.addEventListener('click', openImportModal);
 
+    // 委托绑在 panel 上（panel 不会被替换），所以只能绑一次 ——
+    // 每次 render 都绑一遍会让监听器越积越多，点一下触发好几次。
+    if (el.detailBound) return;
+    el.detailBound = true;
     O.dom.on(panel, 'click', '[data-ledger-detail]', function (event, btn) {
       openDetailModal(btn.getAttribute('data-ledger-detail'));
     });
@@ -120,50 +124,16 @@
       '</div>';
   }
 
+  /** 台账表格：与员工端「我的年假」用同一份渲染代码 */
   function tableHtml(rows) {
-    var body = rows.map(function (row) {
-      var entries = row.entries || [];
-      var count = entries.length;
-      var changeCell;
-      if (!count) {
-        changeCell = '<span class="text-xs text-muted">暂无流水</span>';
-      } else {
-        changeCell =
-          '<button class="la-link" type="button" data-ledger-detail="' + esc(row.employee.id + '|' + row.year) + '">' +
-            '查看 ' + count + ' 条流水' +
-          '</button>';
-      }
-
-      return '' +
-        '<tr>' +
-          '<td>' +
-            '<div class="la-emp">' +
-              '<span class="avatar avatar-sm" style="background:' + esc(row.employee.avatarColor || '#2F6BFF') + '">' +
-                esc(row.employee.avatarText || (row.employee.name || '员').charAt(0)) +
-              '</span>' +
-              '<span class="la-emp-text">' +
-                '<span class="la-emp-name">' + esc(row.employee.name) + '</span>' +
-                '<span class="la-emp-account mono">' + esc(row.account.username) + '</span>' +
-              '</span>' +
-            '</div>' +
-          '</td>' +
-          '<td class="mono">' + row.year + ' 年度</td>' +
-          '<td class="la-balance">' + esc(row.balance) + ' 天</td>' +
-          '<td class="mono text-xs text-muted">' + esc(row.lastAt ? O.format.dateTime(row.lastAt) : '—') + '</td>' +
-          '<td>' + changeCell + '</td>' +
-        '</tr>';
-    }).join('');
-
     return '' +
       '<div class="card">' +
-        '<div class="table-wrap">' +
-          '<table class="tbl la-table">' +
-            '<thead><tr>' +
-              '<th>员工</th><th>年假</th><th>剩余年假</th><th>最后更新</th><th>变更记录</th>' +
-            '</tr></thead>' +
-            '<tbody>' + body + '</tbody>' +
-          '</table>' +
-        '</div>' +
+        O.components.ledger.tableHtml(rows, {
+          showEmployee: true,
+          emptyText: '还没有年假台账。点右上角「调整年假」即可为第一位员工建账。',
+          detailAttr: 'data-ledger-detail',
+          detailKey: function (row) { return row.employee.id + '|' + row.year; }
+        }) +
       '</div>';
   }
 
@@ -177,7 +147,7 @@
     var parts = String(key || '').split('|');
     var employeeId = parts[0];
     var year = Number(parts[1]);
-    var entries = O.leave.entriesOf(employeeId, year);
+    var entries = O.leave.entriesOf(employeeId, year, liveUser());
     var employee = O.staff.employees().filter(function (e) {
       return e.id === employeeId;
     })[0];
@@ -188,7 +158,7 @@
     el.detailTitle.textContent = '变更记录';
     el.detailMeta.innerHTML =
       '<p class="text-muted">' + esc(detailState.title) + ' · 余额 ' +
-      esc(O.leave.balanceOf(employeeId, year)) + ' 天 · 共 ' + entries.length + ' 条流水</p>';
+      esc(O.leave.balanceOf(employeeId, year, liveUser())) + ' 天 · 共 ' + entries.length + ' 条流水</p>';
     el.detailBody.innerHTML = entries.length ? entriesTable(entries) : emptyEntriesHtml();
     el.detailModal.hidden = false;
   }
@@ -200,27 +170,7 @@
   }
 
   function entriesTable(entries) {
-    var rowsHtml = entries.map(function (e) {
-      var type = O.leave.TYPES[e.type] || { label: e.type, tone: 'muted' };
-      var delta = Number(e.delta) || 0;
-      var deltaText = (delta > 0 ? '+' : '') + delta + ' 天';
-      var deltaTone = delta > 0 ? 'ok' : (delta < 0 ? 'danger' : 'muted');
-      return '' +
-        '<tr>' +
-          '<td class="mono text-xs text-muted">' + esc(O.format.dateTime(e.createdAt)) + '</td>' +
-          '<td><span class="badge badge-' + type.tone + '">' + esc(type.label) + '</span></td>' +
-          '<td class="la-delta la-delta-' + deltaTone + '">' + esc(deltaText) + '</td>' +
-          '<td class="la-reason">' + esc(e.reason || '—') + '</td>' +
-          '<td class="text-xs text-muted">' + esc(e.operator || '—') + '</td>' +
-        '</tr>';
-    }).join('');
-
-    return '' +
-      '<div class="table-wrap"><table class="tbl la-entries">' +
-        '<thead><tr><th>时间</th><th>类型</th><th>增减</th><th>原因</th><th>操作人</th></tr></thead>' +
-        '<tbody>' + rowsHtml + '</tbody>' +
-      '</table></div>' +
-      '<p class="text-xs text-muted la-detail-note">流水只增不改不删，历史变动始终保留。</p>';
+    return O.components.ledger.entriesHtml(entries);
   }
 
   function closeDetailModal() {
@@ -285,12 +235,12 @@
   /** 实时预览：改完天数就告诉 HR 调整后余额是多少 */
   function previewAdjust() {
     var input = readAdjustInput();
-    var check = O.leave.validateAdjustment(input);
+    var check = O.leave.validateAdjustment(input, liveUser());
     if (!check.ok) {
       el.adjustPreview.hidden = true;
       return;
     }
-    var current = O.leave.balanceOf(input.employeeId, input.year);
+    var current = O.leave.balanceOf(input.employeeId, input.year, liveUser());
     var after = current + check.value.delta;
     el.adjustPreview.hidden = false;
     el.adjustPreview.innerHTML =
@@ -311,7 +261,7 @@
 
   function submitAdjust() {
     var input = readAdjustInput();
-    var check = O.leave.validateAdjustment(input);
+    var check = O.leave.validateAdjustment(input, liveUser());
     if (!check.ok) {
       showAdjustError(check.message);
       if (check.field && el['adjust' + capitalize(check.field)]) {

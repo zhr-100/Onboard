@@ -78,6 +78,9 @@
       // 老工作空间可能是在新集合（如年假明细）出现之前播种的：
       // applySeed 只补"本地还没有的"集合，绝不覆盖已有数据。
       O.store.applySeed(seedState);
+      // 年假台账口径统一为「还能休多少天」：早期按「应得+结转」记的
+      // 初始建账重算一次。HR 手动调整与导入对账产生的流水一律不动。
+      if (O.leave && O.leave.migrateLedger) O.leave.migrateLedger();
       O.store.scheduleServerSync();
 
       O.auth.migrate();        // 老账号的角色名、启用状态迁移

@@ -17,6 +17,8 @@
 
   var panel = null;
   var currentUser = null;
+  /** 本页私有的 DOM 缓存与绑定状态 */
+  var el = {};
 
   /** 本页固定引用的制度条款（直引，不来自检索，没有命中度） */
   var CITED_CLAUSE_IDS = ['POL-HR-001-C01', 'POL-HR-001-C02'];
@@ -207,7 +209,10 @@
 
     var balance = balanceOf(who.employee.id);
     if (!balance) {
-      panel.innerHTML = noLedgerHtml(who);
+      // 基线台账里没有这个人的记录（HR 还没录入）。
+      // 台账区块只依赖流水账，不该被基线台账缺失连累 —— 照样显示，
+      // 没记录就显示空状态，而不是整页消失。
+      panel.innerHTML = previewBar(who) + ledgerSection(who);
       bindPanelEvents();
       return;
     }
@@ -221,6 +226,7 @@
 
     panel.innerHTML =
       previewBar(who) +
+      ledgerSection(who) +
       carryBanner(carry) +
       forfeitBanner(forfeit) +
       '<div class="leave-cards">' +
@@ -242,6 +248,71 @@
 
     renderCitations();
     bindPanelEvents();
+  }
+
+  /* ---------------------------------------------------------
+   * 我的年假台账（各年度剩余年假 + 最后更新 + 流水）
+   * ------------------------------------------------------- */
+
+  /**
+   * 台账行：**只按当前登录账号取数**。
+   *
+   * 员工账号走 O.leave.myRows(liveUser()) —— 那个函数不接受员工编号参数，
+   * 自己从账号记录里取，页面改不了也传不进来别人的编号。
+   * 只有管理员的「演示身份」预览才会按预览对象取（那是管理视角，合法）。
+   */
+  function myLedgerRows(who) {
+    if (who.preview) return O.leave.rowsFor(who.employee.id);
+    return O.leave.myRows(liveUser());
+  }
+
+  function ledgerSection(who) {
+    var rows = myLedgerRows(who);
+    return '' +
+      '<div class="leave-section leave-ledger-section">' +
+        '<div class="leave-section-head">' +
+          '<h3>我的年假台账</h3>' +
+        '</div>' +
+        '<div class="card">' +
+          O.components.ledger.tableHtml(rows, {
+            showEmployee: false,
+            emptyText: '请联系 HR 录入你的年假数据；没有记录不代表余额为零。',
+            detailAttr: 'data-my-ledger-detail'
+          }) +
+        '</div>' +
+        '<div id="myLedgerDetail"></div>' +
+        '<p class="text-xs text-muted leave-note">' +
+          '余额由 HR 维护。余额等于所有流水的合计，历史变动始终保留。' +
+          '台账余额是 HR 记录的年假额度；下方的「可用」还要再扣掉已休与已预约的天数，两者口径不同。' +
+        '</p>' +
+      '</div>';
+  }
+
+  /** 展开某个年度的流水明细 */
+  function openMyLedgerDetail(year) {
+    var box = document.getElementById('myLedgerDetail');
+    if (!box) return;
+
+    // 只认当前登录账号 —— 和 myRows 同一套身份来源
+    var entries = O.leave.myEntries(liveUser(), Number(year));
+    if (!entries.length) {
+      box.innerHTML = '';
+      return;
+    }
+
+    var already = box.getAttribute('data-year') === String(year);
+    if (already) {
+      box.innerHTML = '';
+      box.removeAttribute('data-year');
+      return;
+    }
+
+    box.setAttribute('data-year', String(year));
+    box.innerHTML =
+      '<div class="leave-detail">' +
+        '<div class="leave-detail-head">' + esc(year) + ' 年度变更记录</div>' +
+        O.components.ledger.entriesHtml(entries) +
+      '</div>';
   }
 
   function previewBar(who) {
@@ -374,9 +445,8 @@
       previewBar(who) +
       '<div class="empty">' +
         '<div class="empty-icon">📅</div>' +
-        '<div class="empty-title">暂无年假台账</div>' +
-        '<div class="empty-desc">HR 年假台账里还没有「' + esc(who.employee.name) + '」的记录' +
-        '（示例台账只覆盖示例名册中的员工）。如需查询或登记年假，请在问答页转人工联系 HR。</div>' +
+        '<div class="empty-title">暂无年假记录</div>' +
+        '<div class="empty-desc">请联系 HR 录入你的年假数据；没有记录不代表余额为零。</div>' +
       '</div>';
   }
 
@@ -466,6 +536,16 @@
     if (select) {
       select.addEventListener('change', render);
     }
+
+    // 「查看 N 条流水」：展开本年度的流水明细。
+    // 委托绑在 panel 上，而 panel 不会被替换 —— 所以**只能绑一次**。
+    // 每次 render 都绑一遍会让监听器越积越多，点一下触发好几次，
+    // 展开/收起被连着触发几次，结果又回到「收起」的样子。
+    if (el.detailBound) return;
+    el.detailBound = true;
+    O.dom.on(panel, 'click', '[data-my-ledger-detail]', function (event, btn) {
+      openMyLedgerDetail(btn.getAttribute('data-my-ledger-detail'));
+    });
   }
 
   O.pages.leave = { init: init, onShow: onShow };
