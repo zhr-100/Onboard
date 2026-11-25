@@ -13,6 +13,7 @@
     overview: '工作概览',
     chat: '员工问答',
     leave: '年假',
+    leaveadmin: '年假管理',
     tickets: '我的工单',
     faq: '常见问题',
     org: '组织架构',
@@ -338,6 +339,10 @@
       O.pages.leave.init(user);
     }
 
+    if (O.pages.leaveadmin && O.pages.leaveadmin.init) {
+      O.pages.leaveadmin.init(user);
+    }
+
     if (O.pages.knowledge && O.pages.knowledge.init) {
       O.pages.knowledge.init(user);
     }
@@ -428,6 +433,10 @@
 
     if (O.pages.leave && O.pages.leave.onShow) {
       O.pages.leave.onShow(target);
+    }
+
+    if (O.pages.leaveadmin && O.pages.leaveadmin.onShow) {
+      O.pages.leaveadmin.onShow(target);
     }
 
     if (O.pages.knowledge && O.pages.knowledge.onShow) {

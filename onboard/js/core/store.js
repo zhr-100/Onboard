@@ -19,6 +19,7 @@
     departments: 'onboard.v1.departments',
     leaveBalances: 'onboard.v1.leaveBalances',
     leaveRecords: 'onboard.v1.leaveRecords',
+    leaveLedger: 'onboard.v1.leaveLedger',
     tickets: 'onboard.v1.tickets',
     onboardingTasks: 'onboard.v1.onboardingTasks',
     onboardingTemplates: 'onboard.v1.onboardingTemplates',
@@ -31,7 +32,7 @@
   };
 
   var COLLECTIONS = [
-    'policies', 'employees', 'departments', 'leaveBalances', 'leaveRecords', 'tickets',
+    'policies', 'employees', 'departments', 'leaveBalances', 'leaveRecords', 'leaveLedger', 'tickets',
     'onboardingTasks', 'onboardingTemplates', 'questionLogs', 'chatSessions',
     'accounts'
   ];

@@ -16,6 +16,9 @@
     overview: 'view.overview',
     chat: 'view.chat',
     leave: 'view.leave',
+    // 年假管理是 HR 后台，用独立权限 —— 不能复用 view.leave，
+    // 那是员工端「我的年假」的权限，普通员工也有。
+    leaveadmin: 'manage.leave',
     tickets: 'view.tickets',
     faq: 'view.faq',
     org: 'view.org',
@@ -33,6 +36,7 @@
     overview: '工作概览',
     chat: '员工问答',
     leave: '年假',
+    leaveadmin: '年假管理',
     tickets: '我的工单',
     faq: '常见问题',
     org: '组织架构',
@@ -52,6 +56,7 @@
     'action.handoff',
     'action.feedback',
     'manage.hr',
+    'manage.leave',
     'manage.retrieval',
     'manage.accounts'
   ]);
@@ -65,7 +70,7 @@
     'HR管理员': [
       'view.overview', 'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org', 'view.policies',
       'view.staff', 'view.hr', 'view.learn', 'view.knowledge',
-      'action.handoff', 'action.feedback', 'manage.hr'
+      'action.handoff', 'action.feedback', 'manage.hr', 'manage.leave'
     ],
     '产品运营': [
       'view.overview', 'view.chat', 'view.tickets', 'view.learn', 'view.ops', 'view.org', 'view.policies',

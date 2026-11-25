@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/chat.css">
   <link rel="stylesheet" href="css/org.css">
   <link rel="stylesheet" href="css/leave.css">
+  <link rel="stylesheet" href="css/leaveadmin.css">
   <link rel="stylesheet" href="css/knowledge.css">
   <link rel="stylesheet" href="css/policies.css">
 </head>
@@ -142,6 +143,7 @@
 
       <div class="nav-group-title">管理</div>
       <a href="#/staff" data-pane="staff"><span class="nav-ico" aria-hidden="true">👥</span>员工管理</a>
+      <a href="#/leaveadmin" data-pane="leaveadmin"><span class="nav-ico" aria-hidden="true">📒</span>年假管理</a>
       <a href="#/knowledge" data-pane="knowledge"><span class="nav-ico" aria-hidden="true">📚</span>制度知识库</a>
       <a href="#/hr" data-pane="hr" class="is-soon"><span class="nav-ico" aria-hidden="true">📋</span>员工与制度</a>
       <a href="#/ops" data-pane="ops" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
@@ -301,6 +303,19 @@
               <p>维护员工名册和登录账号。新增员工会同时开通账号，员工编号就是登录名，创建后不可修改。</p>
             </div>
             <div id="staffPanel"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 年假管理（HR 后台：年假台账与流水） -->
+      <section class="pane" id="pane-leaveadmin">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>年假管理</h2>
+              <p>维护每个员工的年假余额。余额等于所有流水的合计，每次调整都会留下一条流水，历史变动始终保留。</p>
+            </div>
+            <div id="leaveAdminPanel"></div>
           </div>
         </div>
       </section>
@@ -684,6 +699,126 @@
   </div>
 </div>
 
+<!-- 年假管理 · 变更记录（流水明细） -->
+<div class="modal-mask" id="laDetailModal" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="laDetailTitle">
+    <div class="modal-head">
+      <h3 id="laDetailTitle">变更记录</h3>
+      <button class="modal-close" id="laDetailClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="laDetailMeta"></div>
+      <div id="laDetailBody"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="laDetailCancel" type="button">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 年假管理 · 调整年假 -->
+<div class="modal-mask" id="laAdjustModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="laAdjustTitle">
+    <div class="modal-head">
+      <h3 id="laAdjustTitle">调整年假</h3>
+      <button class="modal-close" id="laAdjustClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="laAdjustEmployee">员工</label>
+        <select class="select" id="laAdjustEmployee"></select>
+      </div>
+      <div class="field">
+        <label for="laAdjustYear">年度</label>
+        <select class="select" id="laAdjustYear"></select>
+      </div>
+      <div class="field">
+        <label for="laAdjustDirection">调整方式</label>
+        <select class="select" id="laAdjustDirection">
+          <option value="add">增加</option>
+          <option value="sub">减少</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="laAdjustDays">天数</label>
+        <input class="input" id="laAdjustDays" type="text" inputmode="numeric" autocomplete="off" placeholder="请输入正整数">
+        <p class="hint">只能填正整数；减少额度请选「减少」，不要填负数。</p>
+      </div>
+      <div class="field">
+        <label for="laAdjustReason">调整原因（必填）</label>
+        <textarea class="textarea" id="laAdjustReason" maxlength="200" placeholder="例如：入职年限跨档补足年假差额 / 离职结算多退 / 历史账实不符更正"></textarea>
+        <p class="hint">原因会记入变更记录，请写清楚依据。</p>
+      </div>
+      <div class="la-preview" id="laAdjustPreview" hidden></div>
+      <div class="form-error" id="laAdjustError" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="laAdjustCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="laAdjustSubmit" type="button">确认调整</button>
+    </div>
+  </div>
+</div>
+
+<!-- 年假管理 · 导入余额 -->
+<div class="modal-mask" id="laImportModal" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="laImportTitle">
+    <div class="modal-head">
+      <h3 id="laImportTitle">导入余额</h3>
+      <button class="modal-close" id="laImportClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 第一步：下载模板 / 选择文件 -->
+      <div id="laImportPick">
+        <div class="la-import-step">
+          <div class="la-import-step-num">1</div>
+          <div class="la-import-step-text">
+            <b>下载模板</b>
+            <p class="text-xs text-muted">模板含「员工编号 / 姓名 / 年度 / 年假天数」四列，按现有余额填写。Excel / WPS 可直接打开。</p>
+            <button class="btn btn-outline-light btn-sm" id="laTemplateBtn" type="button">下载年假余额模板</button>
+          </div>
+        </div>
+        <div class="la-import-step">
+          <div class="la-import-step-num">2</div>
+          <div class="la-import-step-text">
+            <b>选择填好的表格</b>
+            <div class="field">
+              <input class="input" id="laImportFile" type="file" accept=".csv,.txt">
+            </div>
+            <p class="hint">上传后先预览校验，确认无误才会写入。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第二步：预览校验 -->
+      <div id="laImportPreview" hidden>
+        <div id="laImportSummary" class="la-import-summary"></div>
+        <div class="table-wrap">
+          <table class="tbl la-import-table">
+            <thead><tr>
+              <th>行号</th><th>姓名</th><th>员工编号</th><th>年度</th>
+              <th>当前余额</th><th>导入值</th><th>差额</th><th>处理方式</th>
+            </tr></thead>
+            <tbody id="laImportRows"></tbody>
+          </table>
+        </div>
+        <p class="text-xs text-muted" id="laImportHint"></p>
+      </div>
+
+      <!-- 第三步：写入结果 -->
+      <div id="laImportResult" hidden>
+        <div class="la-import-ok" id="laImportResultSummary"></div>
+        <ul class="la-import-detail" id="laImportResultDetail"></ul>
+      </div>
+
+      <div class="form-error" id="laImportError" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="laImportCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="laImportSubmit" type="button" hidden>确认导入</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-mask" id="pwdModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pwdTitle">
     <div class="modal-head">
@@ -731,6 +866,7 @@
 <script src="js/core/permissions.js"></script>
 <script src="js/core/auth.js"></script>
 <script src="js/core/staff.js"></script>
+<script src="js/core/leave.js"></script>
 <script src="js/core/knowledge.js"></script>
 <script src="js/core/csv.js"></script>
 
@@ -752,6 +888,7 @@
 <script src="js/pages/org.js"></script>
 <script src="js/pages/policies.js"></script>
 <script src="js/pages/leave.js"></script>
+<script src="js/pages/leaveadmin.js"></script>
 <script src="js/pages/knowledge.js"></script>
 <script src="js/pages/employee.js"></script>
 </body>
