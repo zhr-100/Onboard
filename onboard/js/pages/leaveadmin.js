@@ -89,7 +89,7 @@
           '<span class="badge badge-muted">共 ' + rows.length + ' 条</span>' +
         '</div>' +
         '<div class="la-toolbar-right">' +
-          '<button class="btn btn-outline-light btn-sm" id="laImportBtn" type="button">导入余额</button>' +
+          '<button class="btn btn-ghost btn-sm" id="laImportBtn" type="button">导入余额</button>' +
           '<button class="btn btn-primary btn-sm" id="laAdjustBtn" type="button">调整年假</button>' +
         '</div>' +
       '</div>' +
