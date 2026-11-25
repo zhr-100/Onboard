@@ -5,6 +5,9 @@ config.json
 data/runtime-state.json
 data/runtime-state.json.tmp
 
+# 制度知识库：原始文件、解析结果、元数据
+data/kb/
+
 # 常见依赖与系统文件
 node_modules/
 .DS_Store

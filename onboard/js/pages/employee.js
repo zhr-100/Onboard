@@ -70,11 +70,28 @@
     state.ready = true;
     if (!restoreSession()) renderWelcome();
     renderTicketList();
+    refreshKnowledge();
+    startKnowledgeRefresh();
+  }
+
+  /** 页面停留很久时也能感知知识库的发布/下架（每分钟拉一次，失败不影响基线问答） */
+  function startKnowledgeRefresh() {
+    if (state.kbTimer) clearInterval(state.kbTimer);
+    state.kbTimer = setInterval(function () {
+      var shell = document.getElementById('appShell');
+      if (!shell || shell.hidden) return;
+      var pane = document.getElementById('pane-chat');
+      if (!pane || !pane.classList.contains('is-active')) return;
+      if (!O.store || O.store.mode !== 'server') return;
+      if (!O.auth.currentUser()) return;
+      refreshKnowledge();
+    }, 60000);
   }
 
   /** 切换到某个页面时由外壳调用 */
   function onShow(pane) {
     if (pane === 'tickets') renderTicketList();
+    if (pane === 'chat') refreshKnowledge();
   }
 
   function initEmployees(user) {
@@ -92,6 +109,7 @@
         state.employee = mine;
         el.employeeSelect.value = mine.id;
         el.employeeSelect.hidden = true;
+        if (O.knowledge && O.knowledge.setActing) O.knowledge.setActing(mine);
         return;
       }
     }
@@ -101,6 +119,7 @@
       state.employeeId = current.id;
       state.employee = current;
       el.employeeSelect.value = current.id;
+      if (O.knowledge && O.knowledge.setActing) O.knowledge.setActing(current);
     }
   }
 
@@ -136,8 +155,11 @@
       if (!found) return;
       state.employeeId = found.id;
       state.employee = found;
+      if (O.knowledge && O.knowledge.setActing) O.knowledge.setActing(found);
       if (!restoreSession()) renderWelcome();
       renderTicketList();
+      // 换人就要换部门：制度按部门适用，得重新拉一次
+      refreshKnowledge();
     });
   }
 
@@ -188,14 +210,50 @@
     });
   }
 
+  /** 基线示例制度 + 知识库里已发布且适用于当前身份的制度 */
+  function mergedPolicies() {
+    var baseline = O.store.get('policies') || [];
+    var kb = (O.knowledge && O.knowledge.publishedPolicies) ? O.knowledge.publishedPolicies() : [];
+    if (!kb.length) return baseline;
+    return baseline.concat(kb);
+  }
+
   function corpus() {
-    var policies = O.store.get('policies') || [];
-    var sig = policies.length + ':' + JSON.stringify(policies).length;
+    var policies = mergedPolicies();
+    // 签名必须能反映「内容变了」：制度数量、序列化长度、知识库版本号、
+    // 当前部门、今天日期（生效日期按天判断）。只比长度会漏掉同长度改动。
+    var sig = policies.length + ':' + JSON.stringify(policies).length + ':' +
+      (O.knowledge ? O.knowledge.publishedVersion() : 0) + ':' +
+      (state.employee ? state.employee.dept : '') + ':' + todayString();
     if (!state.corpus || state.corpusSig !== sig) {
       state.corpus = O.nlp.retriever.build(policies);
       state.corpusSig = sig;
     }
     return state.corpus;
+  }
+
+  function todayString() {
+    var d = new Date();
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  /**
+   * 拉取知识库已发布制度。
+   * 可见范围由服务端按「当前查看身份」判断（和制度中心同一套规则），
+   * 这里只负责告诉服务端当前是谁。
+   */
+  function refreshKnowledge() {
+    if (!O.knowledge || !O.knowledge.refreshPublished) return Promise.resolve();
+    // 只有服务模式才有知识库；双击 index.html 打开时不发请求（也不报错）
+    if (!O.store || O.store.mode !== 'server') return Promise.resolve();
+    if (state.employee && O.knowledge.setActing) O.knowledge.setActing(state.employee);
+    return O.knowledge.refreshPublished().catch(function (error) {
+      // 拉不到知识库不影响基线问答，只是没有已发布的新制度
+      if (root && root.console && console.warn) {
+        console.warn('[初见] 知识库已发布制度拉取失败：' + (error && error.message ? error.message : '未知错误'));
+      }
+    });
   }
 
   function ask(text) {
@@ -302,7 +360,7 @@
   }
 
   function candidateClause(candidate) {
-    var policies = O.store.get('policies') || [];
+    var policies = mergedPolicies();
     for (var i = 0; i < policies.length; i++) {
       var clauses = policies[i].clauses || [];
       for (var j = 0; j < clauses.length; j++) {
@@ -313,16 +371,20 @@
   }
 
   function candidatePolicy(candidate) {
-    var policies = O.store.get('policies') || [];
+    var policies = mergedPolicies();
     for (var i = 0; i < policies.length; i++) {
       var clauses = policies[i].clauses || [];
       for (var j = 0; j < clauses.length; j++) {
         if (clauses[j].id === candidate.clauseId) return policies[i];
       }
     }
+    // 找不到对应制度（例如历史会话里引用了已经删掉的文档）：
+    // 用候选自带的元信息兜底，别把部门、生效日期、来源都丢掉。
     return {
-      id: '', code: '', title: candidate.policyTitle, category: '', owner: '',
-      version: candidate.version, effectiveDate: ''
+      id: candidate.policyId || '', code: candidate.policyCode || '',
+      title: candidate.policyTitle || '', category: candidate.policyCategory || '',
+      owner: candidate.policyOwner || '', version: candidate.version || '',
+      effectiveDate: candidate.effectiveDate || '', source: candidate.source || ''
     };
   }
 

@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="css/shell.css">
   <link rel="stylesheet" href="css/chat.css">
   <link rel="stylesheet" href="css/org.css">
+  <link rel="stylesheet" href="css/knowledge.css">
+  <link rel="stylesheet" href="css/policies.css">
 </head>
 <body>
 
@@ -135,9 +137,11 @@
       <a href="#/tickets" data-pane="tickets"><span class="nav-ico" aria-hidden="true">📮</span>我的工单</a>
       <a href="#/faq" data-pane="faq"><span class="nav-ico" aria-hidden="true">❓</span>常见问题</a>
       <a href="#/org" data-pane="org"><span class="nav-ico" aria-hidden="true">🏢</span>组织架构</a>
+      <a href="#/policies" data-pane="policies"><span class="nav-ico" aria-hidden="true">📄</span>制度中心</a>
 
       <div class="nav-group-title">管理</div>
       <a href="#/staff" data-pane="staff"><span class="nav-ico" aria-hidden="true">👥</span>员工管理</a>
+      <a href="#/knowledge" data-pane="knowledge"><span class="nav-ico" aria-hidden="true">📚</span>制度知识库</a>
       <a href="#/hr" data-pane="hr" class="is-soon"><span class="nav-ico" aria-hidden="true">📋</span>员工与制度</a>
       <a href="#/ops" data-pane="ops" class="is-soon"><span class="nav-ico" aria-hidden="true">📈</span>回答质量</a>
       <a href="#/learn" data-pane="learn" class="is-soon"><span class="nav-ico" aria-hidden="true">📘</span>学习中心</a>
@@ -299,6 +303,32 @@
               <p>维护员工名册和登录账号。新增员工会同时开通账号，员工编号就是登录名，创建后不可修改。</p>
             </div>
             <div id="staffPanel"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 制度中心（全体员工可见；内容按本人部门过滤） -->
+      <section class="pane" id="pane-policies">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>制度中心</h2>
+              <p>公司制度的统一目录。只有已发布、在有效期内、且适用全员或你所在部门的制度才会出现在这里。</p>
+            </div>
+            <div id="policiesPanel"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 制度知识库（HR管理员 / 系统管理员） -->
+      <section class="pane" id="pane-knowledge">
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>制度知识库</h2>
+              <p>上传公司的 PDF / Word / 文本制度，解析确认无误后手动发布，发布后才会用于员工问答。</p>
+            </div>
+            <div id="knowledgePanel"></div>
           </div>
         </div>
       </section>
@@ -515,6 +545,95 @@
   </div>
 </div>
 
+<!-- 制度正文（制度中心） -->
+<div class="modal-mask" id="policyDetailModal" hidden>
+  <div class="modal" style="max-width:820px" role="dialog" aria-modal="true" aria-labelledby="policyDetailTitle">
+    <div class="modal-head">
+      <h3 id="policyDetailTitle">制度正文</h3>
+      <button class="modal-close" id="policyDetailClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="policyDetailMeta"></div>
+      <div id="policyDetailBody"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="policyDetailCancel" type="button">关闭</button>
+      <button class="btn btn-ghost" id="policyDownloadBtn" type="button" hidden>下载原件</button>
+    </div>
+  </div>
+</div>
+
+<!-- 上传制度（制度知识库） -->
+<div class="modal-mask" id="kbUploadModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="kbUploadTitle">
+    <div class="modal-head">
+      <h3 id="kbUploadTitle">上传制度</h3>
+      <button class="modal-close" id="kbUploadClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="kbFile">制度文件</label>
+        <input class="input" id="kbFile" type="file" accept=".pdf,.docx,.txt,.md">
+        <p class="hint" id="kbFileHint">支持 PDF、Word(.docx)、TXT、Markdown，单个文件不超过 20MB。旧版 .doc 请先另存为 .docx。</p>
+      </div>
+      <div class="field">
+        <label for="kbTitle">制度名称</label>
+        <input class="input" id="kbTitle" type="text" maxlength="100" placeholder="例如：差旅报销制度">
+      </div>
+      <div class="field">
+        <label for="kbCategory">分类</label>
+        <select class="select" id="kbCategory"></select>
+      </div>
+      <div class="field">
+        <label for="kbScope">适用范围</label>
+        <select class="select" id="kbScope">
+          <option value="all">全员</option>
+          <option value="dept">指定部门</option>
+        </select>
+      </div>
+      <div class="field" id="kbDeptField" hidden>
+        <label for="kbDept">部门名称</label>
+        <input class="input" id="kbDept" type="text" maxlength="20" list="staffDeptOptions" placeholder="从已有部门里选，或直接输入新部门">
+      </div>
+      <div class="field">
+        <label for="kbVersion">版本号</label>
+        <input class="input" id="kbVersion" type="text" maxlength="20" placeholder="例如：v1.0">
+      </div>
+      <div class="field">
+        <label for="kbEffectiveDate">生效日期</label>
+        <input class="input" id="kbEffectiveDate" type="date">
+        <p class="hint">生效日期未到的制度，即使已发布也不会用于回答。</p>
+      </div>
+      <div class="form-error" id="kbUploadError" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="kbUploadCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="kbUploadSubmit" type="button">上传并解析</button>
+    </div>
+  </div>
+</div>
+
+<!-- 制度详情 / 解析预览 -->
+<div class="modal-mask" id="kbDetailModal" hidden>
+  <div class="modal" style="max-width:860px" role="dialog" aria-modal="true" aria-labelledby="kbDetailTitle">
+    <div class="modal-head">
+      <h3 id="kbDetailTitle">制度详情</h3>
+      <button class="modal-close" id="kbDetailClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="kbDetailMeta"></div>
+      <div id="kbDetailPreview"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="kbDetailCancel" type="button">关闭</button>
+      <button class="btn btn-ghost" id="kbRetryBtn" type="button" hidden>重试解析</button>
+      <button class="btn btn-ghost" id="kbDownloadBtn" type="button">下载原件</button>
+      <button class="btn btn-primary" id="kbPublishBtn" type="button" hidden>发布</button>
+      <button class="btn btn-ghost" id="kbUnpublishBtn" type="button" hidden>下架</button>
+    </div>
+  </div>
+</div>
+
 <!-- 新增部门（组织架构页，HR管理员 / 系统管理员） -->
 <div class="modal-mask" id="deptCreateModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deptCreateTitle">
@@ -613,6 +732,7 @@
 <script src="js/core/permissions.js"></script>
 <script src="js/core/auth.js"></script>
 <script src="js/core/staff.js"></script>
+<script src="js/core/knowledge.js"></script>
 <script src="js/core/csv.js"></script>
 
 <script src="js/nlp/config.js"></script>
@@ -631,6 +751,8 @@
 <script src="js/pages/accounts.js"></script>
 <script src="js/pages/staff.js"></script>
 <script src="js/pages/org.js"></script>
+<script src="js/pages/policies.js"></script>
+<script src="js/pages/knowledge.js"></script>
 <script src="js/pages/employee.js"></script>
 </body>
 </html>

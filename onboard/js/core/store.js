@@ -234,6 +234,32 @@
     }, 400);
   }
 
+  /**
+   * 立刻把当前状态推给服务端，返回 Promise。
+   * 知识库的鉴权依赖服务端的账号数据，所以进知识库页面前要先同步一次，
+   * 避免服务端还拿着旧的角色/启用状态。
+   */
+  function syncNow() {
+    if (mode !== 'server' || typeof fetch !== 'function') {
+      return Promise.resolve({ ok: false, error: '当前不是服务模式' });
+    }
+    if (serverSyncTimer) {
+      clearTimeout(serverSyncTimer);
+      serverSyncTimer = null;
+    }
+    return fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign(state(), { savedAt: Date.now() }))
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return { ok: true };
+    }).catch(function (err) {
+      notifySyncError();
+      return { ok: false, error: err && err.message ? err.message : '同步失败' };
+    });
+  }
+
   function putState(savedAt, retriesLeft) {
     if (mode !== 'server' || typeof fetch !== 'function') return;
     fetch('/api/state', {
@@ -287,6 +313,7 @@
     subscribe: subscribe,
     trim: trim,
     scheduleServerSync: scheduleServerSync,
+    syncNow: syncNow,
     get mode() { return mode; },
     get available() { return localAvailable; }
   };

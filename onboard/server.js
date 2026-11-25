@@ -19,6 +19,8 @@ const path = require('path');
 const vm = require('vm');
 const url = require('url');
 
+const { createKnowledgeService } = require('./server/knowledge');
+
 const ROOT = __dirname;
 
 /* ---------------------------------------------------------
@@ -29,7 +31,8 @@ function readConfig() {
     server: { port: 3000, host: '127.0.0.1' },
     llm: { enabled: false, apiKey: '', model: 'claude-sonnet-5-5', baseUrl: 'https://api.anthropic.com' },
     retrieval: { absMin: 0.42, relMin: 1.35, coverageMin: 0.6, topK: 3 },
-    storage: { stateFile: 'data/runtime-state.json' }
+    storage: { stateFile: 'data/runtime-state.json' },
+    parsing: { pdftotext: '' }
   };
   try {
     const raw = fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8');
@@ -38,7 +41,8 @@ function readConfig() {
       server: Object.assign({}, fallback.server, parsed.server || {}),
       llm: Object.assign({}, fallback.llm, parsed.llm || {}),
       retrieval: Object.assign({}, fallback.retrieval, parsed.retrieval || {}),
-      storage: Object.assign({}, fallback.storage, parsed.storage || {})
+      storage: Object.assign({}, fallback.storage, parsed.storage || {}),
+      parsing: Object.assign({}, fallback.parsing, parsed.parsing || {})
     };
   } catch (e) {
     console.log('提示：没有读到 config.json，已使用默认配置（不影响使用）。');
@@ -69,6 +73,36 @@ function safeJoin(root, target) {
   const resolved = path.resolve(root, '.' + path.normalize('/' + target));
   if (resolved !== root && !resolved.startsWith(root + path.sep)) return null;
   return resolved;
+}
+
+/**
+ * 这些路径不允许通过静态路由访问。
+ *
+ * 之前静态路由会把项目目录下的任意文件都吐出去，包括 config.json（密钥）
+ * 和 data/runtime-state.json（账号哈希），知识库的原始文件也同样危险。
+ * 命中一律 404 —— 不告诉对方"这个文件存在但没权限"。
+ */
+const DENY_EXACT = new Set([
+  'config.json',
+  'config.example.json',
+  'data/runtime-state.json',
+  'data/runtime-state.json.tmp'
+]);
+
+function isDeniedPath(pathname) {
+  // 先把 URL 路径规范化：反斜杠统一、折叠 ..，避免 /data/../data/kb 这种绕法
+  const normalized = path.posix.normalize(
+    String(pathname || '').replace(/\\/g, '/').replace(/^\/+/, '')
+  ).replace(/^\/+/, '').toLowerCase();
+  if (!normalized || normalized === '.') return false;
+
+  const segments = normalized.split('/');
+  // 以点开头的目录/文件（.git、.claude 等）一律拒绝
+  if (segments.some(function (s) { return s.startsWith('.') && s.length > 1; })) return true;
+  if (DENY_EXACT.has(normalized)) return true;
+  // 知识库私有目录：原件、解析结果、元数据
+  if (segments[0] === 'data' && segments[1] === 'kb') return true;
+  return false;
 }
 
 function sendFile(res, filePath) {
@@ -113,6 +147,7 @@ const SCRIPTS = [
   'js/core/format.js',
   'js/core/store.js',
   'js/core/seed.js',
+  'js/core/permissions.js',
   'js/nlp/config.js',
   'js/nlp/lexicon.js',
   'js/nlp/tokenizer.js',
@@ -179,9 +214,41 @@ function json(res, code, payload) {
   res.end(JSON.stringify(payload));
 }
 
+/* ---------------------------------------------------------
+ * 制度知识库服务
+ * ------------------------------------------------------- */
+const knowledge = createKnowledgeService({
+  root: ROOT,
+  config: CONFIG,
+  readState: readState,
+  getPermissions: function () {
+    return getSandbox().Onboard.permissions;
+  },
+  // 基线示例制度：优先用运行期状态里的那份（和网页端问答用的是同一份），
+  // 没有就用 data/policies.js 里的基线数据。
+  getBaselinePolicies: function () {
+    var runtime = readState();
+    if (runtime && Array.isArray(runtime.policies) && runtime.policies.length) {
+      return runtime.policies;
+    }
+    return (getSandbox().OnboardData.policies) || [];
+  }
+});
+
 const server = http.createServer(async function (req, res) {
   const parsed = url.parse(req.url);
-  const pathname = decodeURIComponent(parsed.pathname);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(parsed.pathname);
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('400 请求路径不合法');
+  }
+
+  // 制度知识库：独立存储 + 自己的鉴权（请求头证明），不走静态路由
+  if (pathname === '/api/kb' || pathname.indexOf('/api/kb/') === 0) {
+    return knowledge.handle(req, res, pathname);
+  }
 
   if (pathname === '/api/health') {
     return json(res, 200, {
@@ -225,6 +292,10 @@ const server = http.createServer(async function (req, res) {
 
   // 静态文件
   let target = pathname === '/' ? '/index.html' : pathname;
+  if (isDeniedPath(target)) {
+    res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end('<h1>404 找不到这个页面</h1><p>请回到 <a href="/">首页</a>。</p>');
+  }
   let filePath = safeJoin(ROOT, target);
   if (!filePath) {
     res.writeHead(403);

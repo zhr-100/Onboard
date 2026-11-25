@@ -16,6 +16,8 @@
     tickets: '我的工单',
     faq: '常见问题',
     org: '组织架构',
+    policies: '制度中心',
+    knowledge: '制度知识库',
     staff: '员工管理',
     hr: '员工与制度',
     ops: '回答质量',
@@ -322,6 +324,14 @@
       O.pages.org.init(user);
     }
 
+    if (O.pages.policies && O.pages.policies.init) {
+      O.pages.policies.init(user);
+    }
+
+    if (O.pages.knowledge && O.pages.knowledge.init) {
+      O.pages.knowledge.init(user);
+    }
+
     applyNavPermissions();
 
     // 落地页：按角色决定他能进的第一个页面
@@ -400,6 +410,14 @@
 
     if (O.pages.org && O.pages.org.onShow) {
       O.pages.org.onShow(target);
+    }
+
+    if (O.pages.policies && O.pages.policies.onShow) {
+      O.pages.policies.onShow(target);
+    }
+
+    if (O.pages.knowledge && O.pages.knowledge.onShow) {
+      O.pages.knowledge.onShow(target);
     }
   }
 

@@ -19,6 +19,8 @@
     tickets: 'view.tickets',
     faq: 'view.faq',
     org: 'view.org',
+    policies: 'view.policies',
+    knowledge: 'view.knowledge',
     staff: 'view.staff',
     hr: 'view.hr',
     ops: 'view.ops',
@@ -34,6 +36,8 @@
     tickets: '我的工单',
     faq: '常见问题',
     org: '组织架构',
+    policies: '制度中心',
+    knowledge: '制度知识库',
     staff: '员工管理',
     hr: '员工与制度',
     ops: '回答质量',
@@ -55,16 +59,16 @@
   /** 角色 → 权限清单 */
   var ROLE_PERMISSIONS = {
     '员工': [
-      'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org',
+      'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org', 'view.policies',
       'action.handoff', 'action.feedback'
     ],
     'HR管理员': [
-      'view.overview', 'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org',
-      'view.staff', 'view.hr', 'view.learn',
+      'view.overview', 'view.chat', 'view.leave', 'view.tickets', 'view.faq', 'view.org', 'view.policies',
+      'view.staff', 'view.hr', 'view.learn', 'view.knowledge',
       'action.handoff', 'action.feedback', 'manage.hr'
     ],
     '产品运营': [
-      'view.overview', 'view.chat', 'view.tickets', 'view.learn', 'view.ops', 'view.org',
+      'view.overview', 'view.chat', 'view.tickets', 'view.learn', 'view.ops', 'view.org', 'view.policies',
       'action.feedback', 'manage.retrieval'
     ],
     '系统管理员': ALL_PERMISSIONS.slice()

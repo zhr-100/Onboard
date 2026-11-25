@@ -144,6 +144,7 @@
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible { outline: 3px solid rgba(47, 107, 255, 0.35); outline-offset: 1px; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn[hidden] { display: none !important; }
 
 .btn-primary {
   background: var(--blue-500);

@@ -22,5 +22,9 @@
   },
   "storage": {
     "stateFile": "data/runtime-state.json"
+  },
+  "parsing": {
+    "_说明": "制度知识库 PDF 解析使用的 pdftotext 路径；留空则自动在 PATH 和常见 Git 安装目录里查找。",
+    "pdftotext": ""
   }
 }

@@ -106,7 +106,8 @@
       fullText: clause.text,
       score: Math.round(candidate.score * 100) / 100,
       coverage: Math.round(candidate.coverage * 100) / 100,
-      source: '示例制度库'
+      // 基线制度来自示例数据；知识库上传的制度自己带来源标记
+      source: policy.source || '示例制度库'
     };
   }
 
@@ -213,7 +214,13 @@
       var cands = search.candidates.slice(0, 3).map(function (c) {
         var cit = makeCitation(c, cfg, fallbackKeys);
         return {
+          policyId: cit.policyId,
+          policyCode: cit.policyCode,
           policyTitle: cit.policyTitle,
+          policyCategory: cit.policyCategory,
+          policyOwner: cit.policyOwner,
+          effectiveDate: cit.effectiveDate,
+          source: cit.source,
           version: cit.version,
           clauseNo: cit.clauseNo,
           clauseHeading: cit.clauseHeading,
