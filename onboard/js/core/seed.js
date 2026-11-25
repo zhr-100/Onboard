@@ -23,6 +23,7 @@
       // 部门以名册里的部门为准；这里只存「管理员手动新增」的部门
       departments: [],
       leaveBalances: clone(d.leaveBalances),
+      leaveRecords: clone(d.leaveRecords),
       tickets: clone(d.tickets),
       onboardingTasks: clone(d.onboardingTasks),
       onboardingTemplates: clone(d.onboardingTemplates),

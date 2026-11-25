@@ -18,6 +18,7 @@
     employees: 'onboard.v1.employees',
     departments: 'onboard.v1.departments',
     leaveBalances: 'onboard.v1.leaveBalances',
+    leaveRecords: 'onboard.v1.leaveRecords',
     tickets: 'onboard.v1.tickets',
     onboardingTasks: 'onboard.v1.onboardingTasks',
     onboardingTemplates: 'onboard.v1.onboardingTemplates',
@@ -30,7 +31,7 @@
   };
 
   var COLLECTIONS = [
-    'policies', 'employees', 'departments', 'leaveBalances', 'tickets',
+    'policies', 'employees', 'departments', 'leaveBalances', 'leaveRecords', 'tickets',
     'onboardingTasks', 'onboardingTemplates', 'questionLogs', 'chatSessions',
     'accounts'
   ];
@@ -149,12 +150,23 @@
    * 重要：只补"本地还没有的"那几项，绝不覆盖已有数据。
    * 否则「已播种」标记一旦丢失（例如换了浏览器或清了部分缓存），
    * 用户已经创建的账号、提出的工单就会被空的示例数据冲掉。
+   *
+   * 唯一的例外是"空壳"：本地存的是空数组、而种子有内容 ——
+   * 这说明这份集合是在它出现之前播种的（例如年假明细是后来才加的），
+   * 补上才对。否则老工作空间会一直缺这份数据。
    */
   function applySeed(seedState) {
     COLLECTIONS.forEach(function (name) {
       var value = seedState[name];
       if (value === undefined) return;
-      if (readRaw(KEYS[name]) !== null) return;   // 已经有数据了，保持不动
+      var raw = readRaw(KEYS[name]);
+      if (raw !== null) {
+        var stored = null;
+        try { stored = JSON.parse(raw); } catch (e) { stored = null; }
+        var isEmptyShell = Array.isArray(stored) && stored.length === 0 &&
+          Array.isArray(value) && value.length > 0;
+        if (!isEmptyShell) return;   // 已经有数据了，保持不动
+      }
       writeRaw(KEYS[name], JSON.stringify(value));
     });
     if (seedState.workspace && readRaw(KEYS.workspace) === null) {
@@ -310,6 +322,7 @@
     state: state,
     init: init,
     reset: reset,
+    applySeed: applySeed,
     subscribe: subscribe,
     trim: trim,
     scheduleServerSync: scheduleServerSync,

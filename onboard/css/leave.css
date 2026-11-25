@@ -1,0 +1,129 @@
+/* ===========================================================
+   初见 Onboard · 我的年假页
+   余额卡片 / 结转提醒横幅 / 演示身份条 / 假期明细表
+   =========================================================== */
+
+/* 管理员演示身份条（员工账号登录时不出现） */
+.leave-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.leave-preview-icon { font-size: 18px; flex: 0 0 auto; }
+
+.leave-preview-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.leave-preview-text strong { color: var(--text); font-size: var(--fs-md); }
+
+.leave-preview .select {
+  flex: 0 0 auto;
+  max-width: 240px;
+}
+
+/* 结转提醒横幅 */
+.leave-banner {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  margin-bottom: var(--space-4);
+}
+
+.leave-banner.is-info {
+  border-color: var(--info-border);
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.leave-banner strong { font-weight: 600; }
+
+/* 余额卡片 */
+.leave-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.leave-card {
+  position: relative;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--border-strong);
+  box-shadow: var(--shadow-1);
+}
+
+.leave-card.tone-blue   { border-top-color: var(--blue-500); }
+.leave-card.tone-gray   { border-top-color: var(--text-3); }
+.leave-card.tone-orange { border-top-color: var(--warn); }
+.leave-card.tone-green  { border-top-color: var(--ok); }
+
+.leave-card-title {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin-bottom: var(--space-2);
+}
+
+.leave-card-value {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.leave-card-unit {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--text-3);
+  margin-left: 6px;
+}
+
+.leave-card-sub {
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.6;
+}
+
+/* 分区 */
+.leave-section { margin-top: var(--space-6); }
+
+.leave-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.leave-section-head h3 { font-size: var(--fs-lg); margin: 0; }
+
+/* 明细表 */
+.leave-table th, .leave-table td { white-space: nowrap; }
+.leave-table td.leave-record-note {
+  white-space: normal;
+  color: var(--text-2);
+  min-width: 180px;
+}
+
+/* 台账来源说明 */
+.leave-note { margin-top: var(--space-3); line-height: 1.8; }

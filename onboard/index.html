@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/shell.css">
   <link rel="stylesheet" href="css/chat.css">
   <link rel="stylesheet" href="css/org.css">
+  <link rel="stylesheet" href="css/leave.css">
   <link rel="stylesheet" href="css/knowledge.css">
   <link rel="stylesheet" href="css/policies.css">
 </head>
@@ -197,7 +198,7 @@
             <div class="overview-card">
               <h3>年假</h3>
               <p>个人年假余额、假期明细与申请入口。</p>
-              <span class="tag">下一步</span>
+              <span class="tag">已可用</span>
             </div>
             <div class="overview-card">
               <h3>我的工单</h3>
@@ -241,18 +242,15 @@
         </div>
       </section>
 
-      <!-- 年假（占位） -->
+      <!-- 我的年假（员工端；管理账号进入演示身份预览） -->
       <section class="pane" id="pane-leave">
-        <div class="placeholder">
-          <div class="placeholder-inner">
-            <span class="placeholder-step">下一步交付</span>
-            <h3>我的年假</h3>
-            <p>这里会显示应得、已用、已预约和还能休多少天，每一项都附上对应的制度依据。</p>
-            <ul>
-              <li>4 张余额卡片（应得 / 已用 / 已预约 / 可用）</li>
-              <li>假期明细表与截止时间提醒</li>
-              <li>「申请休假」直接转人工，不绕路</li>
-            </ul>
+        <div class="view-scroll">
+          <div class="view-inner">
+            <div class="view-head">
+              <h2>我的年假</h2>
+              <p>应得、已用、已预约与可用余额，每一项都对得上 HR 台账和制度原文；假期明细与结转截止提醒也在这里。</p>
+            </div>
+            <div id="leavePanel"></div>
           </div>
         </div>
       </section>
@@ -720,6 +718,7 @@
      ============================================================ -->
 <script src="data/policies.js"></script>
 <script src="data/employees.js"></script>
+<script src="data/leave.js"></script>
 <script src="data/tickets.js"></script>
 <script src="data/testcases.js"></script>
 
@@ -752,6 +751,7 @@
 <script src="js/pages/staff.js"></script>
 <script src="js/pages/org.js"></script>
 <script src="js/pages/policies.js"></script>
+<script src="js/pages/leave.js"></script>
 <script src="js/pages/knowledge.js"></script>
 <script src="js/pages/employee.js"></script>
 </body>

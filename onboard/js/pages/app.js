@@ -68,10 +68,16 @@
     bindAuthForms();
     bindShell();
 
-    O.store.init(O.seed.build()).then(function (info) {
+    var seedState = O.seed.build();
+    O.store.init(seedState).then(function (info) {
       // localStorage 不可用（隐私/无痕窗口、浏览器限制）时存储会降级为内存：
       // 页面一切正常，但刷新就全丢。必须明确告诉用户，不能静默。
       if (info && info.available === false) showStorageWarning();
+
+      // 老工作空间可能是在新集合（如年假明细）出现之前播种的：
+      // applySeed 只补"本地还没有的"集合，绝不覆盖已有数据。
+      O.store.applySeed(seedState);
+      O.store.scheduleServerSync();
 
       O.auth.migrate();        // 老账号的角色名、启用状态迁移
       ensureSampleAccounts();  // 补齐示例账号
@@ -328,6 +334,10 @@
       O.pages.policies.init(user);
     }
 
+    if (O.pages.leave && O.pages.leave.init) {
+      O.pages.leave.init(user);
+    }
+
     if (O.pages.knowledge && O.pages.knowledge.init) {
       O.pages.knowledge.init(user);
     }
@@ -414,6 +424,10 @@
 
     if (O.pages.policies && O.pages.policies.onShow) {
       O.pages.policies.onShow(target);
+    }
+
+    if (O.pages.leave && O.pages.leave.onShow) {
+      O.pages.leave.onShow(target);
     }
 
     if (O.pages.knowledge && O.pages.knowledge.onShow) {

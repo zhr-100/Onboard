@@ -34,7 +34,9 @@
           '<div class="citation-source">来源：' + esc(cit.source || '示例制度库') +
             ' · 部门：' + esc(cit.policyOwner || '—') +
             ' · 生效日期：' + esc(cit.effectiveDate || '—') +
-            ' · 命中度 ' + Math.round((cit.score || 0) * 100) + '%</div>' +
+            // 命中度只属于检索结果；制度直引（如年假页的固定依据）没有分数，不显示
+            (typeof cit.score === 'number' ? ' · 命中度 ' + Math.round(cit.score * 100) + '%' : '') +
+          '</div>' +
         '</div>' +
       '</div>';
   }

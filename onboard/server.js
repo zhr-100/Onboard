@@ -156,6 +156,7 @@ const SCRIPTS = [
   'js/nlp/answerer.js',
   'data/policies.js',
   'data/employees.js',
+  'data/leave.js',
   'data/tickets.js'
 ];
 
