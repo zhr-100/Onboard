@@ -265,43 +265,80 @@
    * 口径迁移
    * ------------------------------------------------------- */
 
+  /** 年假以 0.5 天为最小单位（见《年假与假期管理规定（示例）》第 3.2 条） */
+  function isHalfDayStep(value) {
+    var n = Number(value);
+    if (!isFinite(n)) return false;
+    return Math.abs(n * 2 - Math.round(n * 2)) < 1e-9;
+  }
+
   /**
-   * 把初始建账流水重算为当前口径（应得 + 上年结转 = 年假额度）。
-   *
-   * 只有系统生成的 init 流水会被重算；HR 手动调整（adjust）和导入对账
-   * （reconcile）产生的一律不动 —— 那是历史变动，必须保留。
-   *
-   * 幂等：每次启动跑一遍，基线台账变了初始账就跟着变。
+   * 天数格式化：0.5 天的倍数最多一位小数，
+   * 顺手把浮点误差（7.500000000000001）抹掉。
    */
-  function migrateLedger() {
+  function formatDays(value) {
+    var n = Number(value) || 0;
+    if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+    return String(Math.round(n * 10) / 10);
+  }
+
+  /**
+   * 示例流水：系统生成的那部分。
+   *
+   * 三种都算：
+   *  - id 以 LVL-S- 开头（新版示例序列）
+   *  - id 以 LVL-INIT- 开头（旧版系统生成的初始建账）
+   *  - 类型是 init（初始建账一律由系统生成，HR 的操作只会是 adjust / reconcile）
+   *
+   * 原因以「示例：」开头的也算 —— 那是示例序列里的调整流水。
+   *
+   * 排除掉的只有 HR 自己的操作（adjust / reconcile），那些必须永远保留。
+   */
+  function isSampleFlow(entry) {
+    if (!entry) return false;
+    var id = String(entry.id || '');
+    if (id.indexOf('LVL-S-') === 0) return true;
+    if (id.indexOf('LVL-INIT-') === 0) return true;
+    if (entry.type === 'init') return true;
+    return String(entry.reason || '').indexOf('示例：') === 0;
+  }
+
+  /**
+   * 重建示例流水。
+   *
+   * 示例数据改了（比如余额、流水条数调整）时，用它刷新演示数据：
+   *  - 带「示例」标记的流水整体替换成最新的示例序列；
+   *  - HR 自己做的调整（adjust）和导入对账（reconcile）流水**一律保留**。
+   *
+   * 这样演示数据能跟着改，用户自己的操作记录又不会丢。
+   */
+  function rebuildSampleLedger() {
     var list = ledger();
-    if (!list.length) return 0;
+    var keep = list.filter(function (e) { return !isSampleFlow(e); });
 
-    var balances = O.store.get('leaveBalances') || [];
-    var changed = 0;
+    var fresh = O.seed.buildLedger(
+      O.store.get('leaveBalances') || [],
+      (root.OnboardData && root.OnboardData.leaveLedgerSamples) || []);
 
-    list.forEach(function (e) {
-      if (e.type !== 'init') return;
-      var base = balances.filter(function (b) {
-        return b.employeeId === e.employeeId && Number(b.year) === Number(e.year);
-      })[0];
-      if (!base) return;
+    // 示例流水按「员工 + 年度」整组替换：
+    // 该员工该年度已经有 HR 自己的流水，也不影响 —— 两边并存，余额相加。
+    var all = keep.concat(fresh);
 
-      var entitled = Number(base.entitled) || 0;
-      var carried = Number(base.carriedOver) || 0;
-      var total = entitled + carried;
+    var changed = all.length !== list.length;
+    if (!changed) {
+      // 条数一样还要比内容，避免「条数没变但内容变了」的情况被漏掉
+      for (var i = 0; i < all.length; i++) {
+        var a = all[i];
+        var b = list[i];
+        if (!b || a.id !== b.id || a.delta !== b.delta || a.reason !== b.reason) {
+          changed = true;
+          break;
+        }
+      }
+    }
 
-      if (e.delta === total) return;
-
-      e.delta = total;
-      e.reason = '初始建账：' + e.year + ' 年度应得 ' + entitled + ' 天' +
-        (carried ? '，含上年结转 ' + carried + ' 天' : '') +
-        '，年假额度 ' + total + ' 天';
-      changed += 1;
-    });
-
-    if (changed) saveLedger(list);
-    return changed;
+    if (changed) saveLedger(all);
+    return changed ? all.length - list.length : 0;
   }
 
   /* ---------------------------------------------------------
@@ -341,20 +378,28 @@
       return { ok: false, field: 'direction', message: '请选择增加或减少' };
     }
 
-    // 天数：只接受正整数。字母、空值、小数、负数都要给中文提示。
+    // 天数：接受 0.5 天的倍数（年假以半天为最小单位）。
+    // 字母、空值、任意小数、负数都要给中文提示。
     var text = daysRaw === null || daysRaw === undefined ? '' : String(daysRaw).trim();
     if (text === '') {
       return { ok: false, field: 'days', message: '请填写调整的天数' };
     }
-    if (!/^\d+$/.test(text)) {
-      if (/^-?\d+(\.\d+)?$/.test(text)) {
-        return { ok: false, field: 'days', message: '天数必须是整数，不能是小数或负数' };
+    if (!/^\d+(\.\d+)?$/.test(text)) {
+      if (/^-/.test(text)) {
+        return { ok: false, field: 'days', message: '天数不能是负数，减少请直接选「减少」' };
       }
       return { ok: false, field: 'days', message: '天数只能填写数字，请勿输入字母或其它字符' };
     }
     var days = Number(text);
     if (days <= 0) {
       return { ok: false, field: 'days', message: '天数必须大于 0，减少请直接选「减少」' };
+    }
+    if (!isHalfDayStep(days)) {
+      return {
+        ok: false,
+        field: 'days',
+        message: '天数只能按 0.5 天为最小单位填写，例如 1、1.5、2（收到 ' + text + '）'
+      };
     }
     if (days > MAX_BALANCE_DAYS) {
       return { ok: false, field: 'days', message: '一次最多调整 ' + MAX_BALANCE_DAYS + ' 天，请核对是否填错' };
@@ -375,7 +420,7 @@
       return {
         ok: false,
         field: 'days',
-        message: '调整后余额会变成 ' + (current + delta) + ' 天。当前余额为 ' + current +
+        message: '调整后余额会变成 ' + formatDays(current + delta) + ' 天。当前余额为 ' + formatDays(current) +
           ' 天，本次减少 ' + days + ' 天会扣成负数，请核对天数'
       };
     }
@@ -485,17 +530,23 @@
       return { ok: false, reason: '年度「' + yearText + '」超出 2000 至 2100 的范围' };
     }
 
-    // 天数：非负整数。负数、字母、空值、小数都要明确提示。
+    // 天数：非负，且按 0.5 天为最小单位。负数、字母、空值都要明确提示。
     if (daysText === '') {
       return { ok: false, reason: '年假天数为空' };
     }
-    if (!/^\d+$/.test(daysText)) {
-      if (/^-?\d+(\.\d+)?$/.test(daysText)) {
-        return { ok: false, reason: '年假天数「' + daysText + '」不是整数' };
+    if (!/^\d+(\.\d+)?$/.test(daysText)) {
+      if (/^-/.test(daysText)) {
+        return { ok: false, reason: '年假天数「' + daysText + '」不能是负数' };
       }
       return { ok: false, reason: '年假天数「' + daysText + '」不是数字，请只填数字' };
     }
     var days = Number(daysText);
+    if (!isHalfDayStep(days)) {
+      return {
+        ok: false,
+        reason: '年假天数「' + daysText + '」不是 0.5 天的整数倍，请填 1、1.5、2 这样的数'
+      };
+    }
     if (days > MAX_BALANCE_DAYS) {
       return { ok: false, reason: '年假天数「' + daysText + '」超过 ' + MAX_BALANCE_DAYS + ' 天，请核对' };
     }
@@ -515,8 +566,8 @@
       action: diff === 0 ? 'none' : 'reconcile',
       reason: diff === 0
         ? '导入余额与现有余额一致，无需调整'
-        : ('导入对账：账面 ' + current + ' 天，导入 ' + days + ' 天，差额 ' +
-          (diff > 0 ? '+' : '') + diff + ' 天')
+        : ('导入对账：账面 ' + formatDays(current) + ' 天，导入 ' + formatDays(days) + ' 天，差额 ' +
+          (diff > 0 ? '+' : '') + formatDays(diff) + ' 天')
     };
   }
 
@@ -619,7 +670,10 @@
     myEntries: myEntries,
     currentYear: currentYear,
     ensureInitial: ensureInitial,
-    migrateLedger: migrateLedger,
+    rebuildSampleLedger: rebuildSampleLedger,
+    isSampleFlow: isSampleFlow,
+    isHalfDayStep: isHalfDayStep,
+    formatDays: formatDays,
     validateAdjustment: validateAdjustment,
     adjust: adjust,
     templateRows: templateRows,

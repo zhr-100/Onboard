@@ -147,4 +147,99 @@
       startDate: "2026-06-01", endDate: "2026-06-01", days: 1, status: "已完成",
       approver: "刘洋", appliedAt: "2026-05-26", source: "OA 假期申请", note: "离职前最后一天休假" }
   ];
+
+  /**
+   * 年假台账的示例流水（虚构示例，仅用于演示）
+   *
+   * 每名员工 2 到 4 条流水，余额 = 所有流水之和。
+   * 余额各不相同，并且出现 0.5 天 —— 年假本来就以半天为最小单位
+   * （见《年假与假期管理规定（示例）》第 3.2 条）。
+   *
+   * 流水 id 以 LVL-S- 开头、原因以「示例：」开头：
+   * 重新生成示例数据时靠这个标记识别并整体替换，
+   * 而 HR 自己做的调整和导入对账流水一律保留。
+   */
+  root.OnboardData.leaveLedgerSamples = [
+    {
+      employeeId: "E1001", year: 2026, target: 12, flows: [
+        { delta: 15, reason: "示例：年初发放 15 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -2, reason: "示例：已休 2 天", at: "2026-03-16T09:00:00.000Z" },
+        { delta: -1, reason: "示例：已休 1 天", at: "2026-05-18T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1002", year: 2026, target: 10, flows: [
+        { delta: 15, reason: "示例：年初发放 15 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -3, reason: "示例：已休 3 天", at: "2026-02-23T09:00:00.000Z" },
+        { delta: -2, reason: "示例：已休 2 天", at: "2026-04-13T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1003", year: 2026, target: 7.5, flows: [
+        { delta: 15, reason: "示例：年初发放 15 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -5, reason: "示例：已休 5 天", at: "2026-03-16T09:00:00.000Z" },
+        { delta: -2.5, reason: "示例：已休 2.5 天", at: "2026-06-08T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1004", year: 2026, target: 5, flows: [
+        { delta: 10, reason: "示例：年初发放 10 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -3, reason: "示例：已休 3 天", at: "2026-02-09T09:00:00.000Z" },
+        { delta: -2, reason: "示例：已休 2 天", at: "2026-05-06T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1005", year: 2026, target: 11, flows: [
+        { delta: 12, reason: "示例：年初发放 12 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -1, reason: "示例：已休 1 天", at: "2026-04-20T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1006", year: 2026, target: 8.5, flows: [
+        { delta: 20, reason: "示例：年初发放 20 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -8, reason: "示例：已休 8 天", at: "2026-02-02T09:00:00.000Z" },
+        { delta: -2, reason: "示例：已休 2 天", at: "2026-04-06T09:00:00.000Z" },
+        { delta: -1.5, reason: "示例：已休 1.5 天", at: "2026-07-13T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1007", year: 2026, target: 2.5, flows: [
+        { delta: 5, reason: "示例：年初发放 5 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -2.5, reason: "示例：已休 2.5 天", at: "2026-03-02T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1008", year: 2026, target: 6.5, flows: [
+        { delta: 10, reason: "示例：年初发放 10 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -2, reason: "示例：已休 2 天", at: "2026-02-16T09:00:00.000Z" },
+        { delta: -1.5, reason: "示例：已休 1.5 天", at: "2026-05-25T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1009", year: 2026, target: 13, flows: [
+        { delta: 15, reason: "示例：年初发放 15 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -2, reason: "示例：已休 2 天", at: "2026-04-06T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1010", year: 2026, target: 4.5, flows: [
+        { delta: 10, reason: "示例：年初发放 10 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -4, reason: "示例：已休 4 天", at: "2026-03-23T09:00:00.000Z" },
+        { delta: -1.5, reason: "示例：已休 1.5 天", at: "2026-06-15T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1011", year: 2026, target: 9.5, flows: [
+        { delta: 12, reason: "示例：年初发放 12 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -2.5, reason: "示例：已休 2.5 天", at: "2026-03-30T09:00:00.000Z" }
+      ]
+    },
+    {
+      employeeId: "E1012", year: 2026, target: 3.5, flows: [
+        { delta: 8, reason: "示例：年初发放 8 天", at: "2026-01-05T09:00:00.000Z" },
+        { delta: -3, reason: "示例：已休 3 天", at: "2026-02-16T09:00:00.000Z" },
+        { delta: -1.5, reason: "示例：已休 1.5 天", at: "2026-04-13T09:00:00.000Z" }
+      ]
+    }
+  ];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

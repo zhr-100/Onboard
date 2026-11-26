@@ -95,36 +95,75 @@ function checkTrue(desc, value) {
   const HR = { id: 'acc-hr', name: '周颖', role: 'HR管理员', employeeId: 'E1006', enabled: true, salt: 's', passwordHash: 'h' };
   const EMP = { id: 'acc-emp', name: '张三', role: '员工', employeeId: 'E1001', enabled: true, salt: 's', passwordHash: 'h' };
 
-  // ---------- 1. 初始建账 ----------
-  console.log('-- 初始建账 --');
+  // ---------- 1. 示例流水 ----------
+  console.log('-- 示例流水 --');
   const balances = O.store.get('leaveBalances') || [];
   const base = balances.filter((b) => b.employeeId === 'E1001')[0];
-  // 口径：流水账记的是「年假额度」= 应得 + 结转
-  // （已用/已预约在基线台账里，流水账不随休假自动变化）
-  const expectedInit = base.entitled + base.carriedOver;
-  check('E1001 初始余额 = 应得 + 结转',
-    O.leave.balanceOf('E1001', base.year, HR), expectedInit);
-  check('初始流水条数', O.leave.entriesOf('E1001', base.year, HR).length, 1);
-  check('初始流水类型', O.leave.entriesOf('E1001', base.year, HR)[0].type, 'init');
+  const samples = (sandbox.OnboardData && sandbox.OnboardData.leaveLedgerSamples) || [];
 
-  // 全部员工的初始余额都不该为负
-  check('所有员工初始余额非负',
+  check('有示例流水计划', samples.length > 0, true);
+  check('示例流水覆盖 12 名员工', samples.length, 12);
+
+  // 每人 2-4 条流水
+  check('每人 2 到 4 条流水',
+    samples.every((s) => s.flows.length >= 2 && s.flows.length <= 4), true);
+
+  // 余额 = 流水之和，且与计划的目标值一致
+  check('每人的余额 = 其流水之和',
+    samples.every((s) => {
+      const sum = s.flows.reduce((t, f) => t + f.delta, 0);
+      return Math.abs(sum - s.target) < 1e-9;
+    }), true);
+  check('流水账里的余额与计划目标一致',
+    samples.every((s) => Math.abs(O.leave.balanceOf(s.employeeId, s.year, HR) - s.target) < 1e-9),
+    true);
+
+  // 余额各不相同
+  const targets = samples.map((s) => s.target);
+  check('余额各不相同', new Set(targets).size, targets.length);
+
+  // 含 0.5 天的半天余额
+  check('存在 0.5 天的余额', targets.some((t) => t % 1 !== 0), true);
+  check('所有余额都是 0.5 的倍数',
+    targets.every((t) => O.leave.isHalfDayStep(t)), true);
+
+  // 原因带「示例」
+  check('每条流水的原因都带「示例」',
+    samples.every((s) => s.flows.every((f) => f.reason.indexOf('示例') === 0)), true);
+
+  // 所有员工余额非负
+  check('所有员工余额非负',
     balances.every((b) => O.leave.balanceOf(b.employeeId, b.year, HR) >= 0), true);
 
-  // 口径迁移是幂等的：再跑一次不应有变化
-  const beforeMigrate = O.leave.balanceOf('E1001', base.year, HR);
-  O.leave.migrateLedger();
-  check('口径迁移幂等', O.leave.balanceOf('E1001', base.year, HR), beforeMigrate);
+  // 重建是幂等的：再跑一次不应有变化
+  const beforeRebuild = O.leave.balanceOf('E1001', base.year, HR);
+  O.leave.rebuildSampleLedger();
+  check('示例流水重建幂等',
+    O.leave.balanceOf('E1001', base.year, HR), beforeRebuild);
 
   // ---------- 2. 调整生成流水，余额 = Σ流水 ----------
   console.log('\n-- 调整与余额 --');
   const before = O.leave.balanceOf('E1001', base.year, HR);
+  const beforeCount = O.leave.entriesOf('E1001', base.year, HR).length;
+
+  // 先试 0.5 天的调整 —— 半天余额必须能调得动
+  const half = O.leave.adjust(
+    { employeeId: 'E1001', year: base.year, direction: 'add', days: 0.5, reason: '半天额度补发' },
+    HR);
+  checkTrue('0.5 天的调整成功', half.ok);
+  check('0.5 天调整后余额正确',
+    O.leave.balanceOf('E1001', base.year, HR), before + 0.5);
+  check('0.5 天调整也留下流水',
+    O.leave.entriesOf('E1001', base.year, HR).length, beforeCount + 1);
+  // 回退这条，保持后续断言的基数
+  O.store.set('leaveLedger', (O.store.get('leaveLedger') || []).filter((e) => e.reason !== '半天额度补发'));
+
   const r1 = O.leave.adjust(
     { employeeId: 'E1001', year: base.year, direction: 'add', days: 3, reason: '入职年限跨档补足差额' },
     HR);
   checkTrue('调整成功', r1.ok);
   check('调整后余额 = 原余额 + 3', O.leave.balanceOf('E1001', base.year, HR), before + 3);
-  check('流水条数 +1', O.leave.entriesOf('E1001', base.year, HR).length, 2);
+  check('流水条数 +1', O.leave.entriesOf('E1001', base.year, HR).length, beforeCount + 1);
   check('流水记录了原因',
     O.leave.entriesOf('E1001', base.year, HR)[0].reason, '入职年限跨档补足差额');
   check('流水记录了操作人',
@@ -166,8 +205,12 @@ function checkTrue(desc, value) {
 
   const decimal = O.leave.validateAdjustment(
     { employeeId: 'E1001', year: base.year, direction: 'add', days: '1.5', reason: '测试' }, HR);
-  check('小数被拦截', decimal.ok, false);
-  checkTrue('小数提示是中文', /整数/.test(decimal.message));
+  check('0.5 天是合法的调整量', decimal.ok, true);
+
+  const oddDecimal = O.leave.validateAdjustment(
+    { employeeId: 'E1001', year: base.year, direction: 'add', days: '1.3', reason: '测试' }, HR);
+  check('非 0.5 倍数的小数被拦截', oddDecimal.ok, false);
+  checkTrue('提示说明了 0.5 天为最小单位', /0\.5 天为最小单位/.test(oddDecimal.message));
 
   const negativeDays = O.leave.validateAdjustment(
     { employeeId: 'E1001', year: base.year, direction: 'add', days: '-3', reason: '测试' }, HR);
@@ -226,11 +269,11 @@ function checkTrue(desc, value) {
   check('导入后余额 = 导入值', O.leave.balanceOf('E1001', base.year, HR), current + 5);
   check('原有流水一条没少', O.leave.entriesOf('E1001', base.year, HR).length, entriesBefore + 1);
 
-  // 历史流水保留：最早的初始建账还在
+  // 历史流水保留：最早的示例建账流水还在
   const all = O.leave.entriesOf('E1001', base.year, HR);
   check('历史流水仍然完整', all.length, entriesBefore + 1);
-  checkTrue('最早的初始建账流水还在',
-    all.some((e) => e.type === 'init' && e.delta === expectedInit));
+  checkTrue('最早的示例流水还在',
+    all.some((e) => e.type === 'init' && String(e.reason).indexOf('示例') === 0));
 
   // ---------- 6. 导入的异常输入 ----------
   console.log('\n-- 导入异常输入 --');
@@ -250,6 +293,16 @@ function checkTrue(desc, value) {
     employeeId: 'E1001', name: '张小雨', year: base.year, days: '-5'
   });
   check('导入负数被拦截', impNegative.ok, false);
+
+  const impHalf = O.leave.validateImportRow({
+    employeeId: 'E1001', name: '张小雨', year: base.year, days: '7.5'
+  });
+  check('导入 0.5 天的余额通过校验', impHalf.ok, true);
+
+  const impOdd = O.leave.validateImportRow({
+    employeeId: 'E1001', name: '张小雨', year: base.year, days: '7.3'
+  });
+  check('导入非 0.5 倍数被拦截', impOdd.ok, false);
 
   const impNoEmp = O.leave.validateImportRow({
     employeeId: 'E9999', name: '不存在', year: base.year, days: '10'

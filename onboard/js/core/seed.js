@@ -51,20 +51,41 @@
   }
 
   /**
-   * 年假台账的初始流水。
+   * 年假台账的示例流水。
    *
-   * 从基线台账（leaveBalances）动态生成，而不是写死一份文件 ——
-   * 这样台账改了，流水跟着改，两边永远不会对不上。
+   * 优先用 data/leave.js 里的 leaveLedgerSamples（每人 2-4 条、余额各不相同、
+   * 含 0.5 天的半天余额）；没有计划的员工退回基线台账派生的单条初始建账。
    *
-   * 初始余额 = 应得 + 上年结转，这是**年假额度**。
-   *
-   * 为什么不含已用、已预约：流水账记的是「HR 维护的额度变动」，
-   * 它不会随员工休假自动变化 —— 休假记录在基线台账的 used/booked 里。
-   * 员工端的「可用」= 额度 − 已用 − 已预约，两个口径在页面上分开说明。
+   * 流水 id 以 LVL-S- 开头、原因以「示例：」开头 ——
+   * 重新生成示例数据时靠这个标记整体替换，
+   * 而 HR 自己做的调整（adjust）和导入对账（reconcile）流水一律保留。
    */
-  function buildLedger(balances) {
+  function buildLedger(balances, samples) {
+    var plan = samples || (data().leaveLedgerSamples) || [];
     var entries = [];
+
+    // 有示例计划的员工：按计划生成完整流水序列
+    var planned = {};
+    plan.forEach(function (p) {
+      planned[p.employeeId + '|' + p.year] = p;
+      (p.flows || []).forEach(function (f, i) {
+        entries.push({
+          id: 'LVL-S-' + p.employeeId + '-' + p.year + '-' + (i + 1),
+          employeeId: p.employeeId,
+          year: Number(p.year),
+          type: i === 0 ? 'init' : 'adjust',
+          delta: Number(f.delta) || 0,
+          reason: f.reason,
+          operator: '系统初始化',
+          operatorId: '',
+          createdAt: f.at
+        });
+      });
+    });
+
+    // 其余有基线台账的员工：生成单条初始建账
     (balances || []).forEach(function (b) {
+      if (planned[b.employeeId + '|' + b.year]) return;
       var entitled = Number(b.entitled) || 0;
       var carried = Number(b.carriedOver) || 0;
       var total = entitled + carried;
@@ -82,6 +103,7 @@
         createdAt: (b.updatedAt || '2026-06-18') + 'T09:00:00.000Z'
       });
     });
+
     return entries;
   }
 

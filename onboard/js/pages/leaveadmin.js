@@ -244,7 +244,7 @@
     var after = current + check.value.delta;
     el.adjustPreview.hidden = false;
     el.adjustPreview.innerHTML =
-      '当前余额 <b>' + current + ' 天</b> → 调整后 <b class="la-delta la-delta-' +
+      '当前余额 <b>' + esc(O.leave.formatDays(current)) + ' 天</b> → 调整后 <b class="la-delta la-delta-' +
       (check.value.delta > 0 ? 'ok' : 'danger') + '">' + after + ' 天</b>' +
       '（本次 ' + (check.value.delta > 0 ? '增加 ' : '减少 ') + check.value.days + ' 天）';
   }
@@ -277,7 +277,7 @@
     }
 
     closeAdjustModal();
-    O.components.toast.show(result.message + '，当前余额 ' + result.balance + ' 天', 'ok');
+    O.components.toast.show(result.message + '，当前余额 ' + O.leave.formatDays(result.balance) + ' 天', 'ok');
     render();
   }
 
@@ -441,10 +441,10 @@
           '<td>' + esc(e.employee.name) + '</td>' +
           '<td class="mono">' + esc(e.employeeId) + '</td>' +
           '<td class="mono">' + e.year + '</td>' +
-          '<td class="mono">' + e.current + ' 天</td>' +
-          '<td class="mono">' + e.incoming + ' 天</td>' +
+          '<td class="mono">' + esc(O.leave.formatDays(e.current)) + ' 天</td>' +
+          '<td class="mono">' + esc(O.leave.formatDays(e.incoming)) + ' 天</td>' +
           '<td class="la-delta la-delta-' + (e.diff > 0 ? 'ok' : 'danger') + '">' +
-            (e.diff > 0 ? '+' : '') + e.diff + ' 天</td>' +
+            (e.diff > 0 ? '+' : '') + esc(O.leave.formatDays(e.diff)) + ' 天</td>' +
           '<td>' + verdict + '</td>' +
         '</tr>';
     }).join('');

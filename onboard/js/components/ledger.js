@@ -74,7 +74,7 @@
         '<tr>' +
           employeeCell +
           '<td class="mono">' + row.year + ' 年度</td>' +
-          '<td class="la-balance">' + esc(row.balance) + ' 天</td>' +
+          '<td class="la-balance">' + esc(O.leave.formatDays(row.balance)) + ' 天</td>' +
           '<td class="mono text-xs text-muted">' + esc(row.lastAt ? O.format.dateTime(row.lastAt) : '—') + '</td>' +
           '<td>' + changeCell + '</td>' +
         '</tr>';
@@ -109,7 +109,7 @@
     var rows = list.map(function (e) {
       var type = O.leave.TYPES[e.type] || { label: e.type, tone: 'muted' };
       var delta = Number(e.delta) || 0;
-      var deltaText = (delta > 0 ? '+' : '') + delta + ' 天';
+      var deltaText = (delta > 0 ? '+' : '') + O.leave.formatDays(delta) + ' 天';
       var deltaTone = delta > 0 ? 'ok' : (delta < 0 ? 'danger' : 'muted');
       return '' +
         '<tr>' +
